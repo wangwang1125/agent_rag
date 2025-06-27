@@ -67,13 +67,13 @@ UserDataAnalysisAssistant = Assistants.create(
     model="qwen-plus",
     name='用户身体数据分析机器人',
     description='一个专业的身体数据分析助手，能够分析用户提供的结构化身体指标数据',
-    instructions='你是一个专业的身体数据分析助手，专门负责分析用户提供的身体数据。请仔细分析用户提供的结构化身体数据，包括体成分数据(mass_info)、围度信息(girth_info)、体态评估(eval_info)等，提取关键数据信息并识别潜在的异常指标。',
+    instructions='你是一个专业的身体数据分析助手，专门负责分析用户提供的身体数据。请仔细提取用户提供的结构化身体数据，包括体成分数据(mass_info)、围度信息(girth_info)、体态评估(eval_info)等，重点对数值和已明确的异常进行结构化处理，而不要下结论。',
     tools=[
         {
             'type': 'function',
             'function': {
                 'name': '结构化身体数据分析',
-                'description': '分析用户提供的结构化身体数据，提取体成分和体态关键指标信息',
+                'description': '根据用户提供的结构化身体数据，提取全部体成分、体态和体围等关键指标信息',
                 'parameters': {
                     'type': 'object',
                     'properties': {
@@ -93,7 +93,7 @@ KnowledgeQueryAssistant = Assistants.create(
     model="qwen-plus",
     name='身体异常决策树查询机器人',
     description='一个专业的助手，能够查询身体异常判断决策树知识库获取体成分和体态异常相关判断规则',
-    instructions='你是一个专业的身体异常分析助手，专门负责查询身体异常判断决策树知识库。根据用户的身体数据，分别查询体成分异常和体态异常的相关判断规则和决策树信息。需要重点关注体成分指标（BMI、体脂率、去脂体重等）和体态指标（高低肩、头前倾、圆肩等）。',
+    instructions='你是一个专业的身体异常分析助手，专门负责查询身体异常判断决策树知识库。根据用户的身体数据，分别查询体成分异常和体态异常的相关判断规则和决策树信息。需要重点关注体成分指标（BMI、体脂率、去脂体重等）和体态指标（高低肩、头前倾、圆肩等）以及体围等指标。',
     tools=[
         {
             'type': 'function',
@@ -374,44 +374,82 @@ def get_multi_agent_response_internal(query, knowledge_base=None):
     
     try:
         # 获取Agent的运行顺序
-        assistant_order = get_agent_response(PlannerAssistant, query)
-        print("assistant_order", assistant_order)
+        # assistant_order = get_agent_response(PlannerAssistant, query)
+        # print("assistant_order", assistant_order)
         
         # 安全地解析Assistant顺序
-        try:
-            if isinstance(assistant_order, str):
-                # 尝试不同的解析方法
-                assistant_order = assistant_order.strip()
-                if assistant_order.startswith('[') and assistant_order.endswith(']'):
-                    # 如果是列表格式
-                    order_stk = ast.literal_eval(assistant_order)
-                elif assistant_order.startswith('{') and assistant_order.endswith('}'):
-                    # 如果是JSON格式
-                    order_data = json.loads(assistant_order)
-                    order_stk = order_data if isinstance(order_data, list) else [assistant_order]
-                else:
-                    # 尝试从文本中提取列表
-                    import re
-                    list_match = re.search(r'\[(.*?)\]', assistant_order)
-                    if list_match:
-                        order_stk = ast.literal_eval('[' + list_match.group(1) + ']')
-                    else:
-                        # 默认处理
-                        order_stk = ["UserDataAnalysisAssistant", "KnowledgeQueryAssistant", "AbnormalityAnalysisAssistant"]
+        # try:
+        #     if isinstance(assistant_order, str):
+        #         # 尝试不同的解析方法
+        #         assistant_order = assistant_order.strip()
+        #         if assistant_order.startswith('[') and assistant_order.endswith(']'):
+        #             # 如果是列表格式
+        #             order_stk = ast.literal_eval(assistant_order)
+        #         elif assistant_order.startswith('{') and assistant_order.endswith('}'):
+        #             # 如果是JSON格式
+        #             order_data = json.loads(assistant_order)
+        #             order_stk = order_data if isinstance(order_data, list) else [assistant_order]
+        #         else:
+        #             # 尝试从文本中提取列表
+        #             import re
+        #             list_match = re.search(r'\[(.*?)\]', assistant_order)
+        #             if list_match:
+        #                 order_stk = ast.literal_eval('[' + list_match.group(1) + ']')
+        #             else:
+        #                 # 默认处理
+        #                 order_stk = ["UserDataAnalysisAssistant", "KnowledgeQueryAssistant", "AbnormalityAnalysisAssistant"]
+        #     else:
+        #         order_stk = assistant_order if isinstance(assistant_order, list) else [str(assistant_order)]
+        # except Exception as e:
+        #     print(f"解析assistant_order失败: {e}, 使用默认顺序")
+        #     order_stk = ["UserDataAnalysisAssistant", "KnowledgeQueryAssistant", "AbnormalityAnalysisAssistant"]
+        order_stk = ["UserDataAnalysisAssistant", "KnowledgeQueryAssistant", "AbnormalityAnalysisAssistant"]
+        
+        # 提取用户身体数据（从原始query中）
+        user_body_data = ""
+        if "请分析以下身体数据" in query:
+            # 提取JSON数据部分
+            import re
+            json_match = re.search(r'：(\{.*\})$', query)
+            if json_match:
+                user_body_data = json_match.group(1)
             else:
-                order_stk = assistant_order if isinstance(assistant_order, list) else [str(assistant_order)]
-        except Exception as e:
-            print(f"解析assistant_order失败: {e}, 使用默认顺序")
-            order_stk = ["UserDataAnalysisAssistant", "KnowledgeQueryAssistant", "AbnormalityAnalysisAssistant"]
-        cur_query = query
+                user_body_data = query
+        else:
+            user_body_data = query
+        
         Agent_Message = ""
+        previous_responses = {}  # 存储各个Agent的响应
         
         # 依次运行Agent
         for i in range(len(order_stk)):
-            cur_assistant = assistant_mapper[order_stk[i]]
+            assistant_name = order_stk[i]
+            cur_assistant = assistant_mapper[assistant_name]
+            
+            # 为不同的Assistant定制专门的查询内容
+            if assistant_name == "UserDataAnalysisAssistant":
+                # 数据分析Assistant：专注于结构化处理所有身体数据
+                cur_query = f"请对以下身体数据进行全面的结构化分析和提取，包括所有体成分指标、体态指标、围度信息等：{user_body_data}"
+                
+            elif assistant_name == "KnowledgeQueryAssistant":
+                # 知识库查询Assistant：基于前面的数据分析结果查询决策树规则
+                user_analysis = previous_responses.get("UserDataAnalysisAssistant", "")
+                cur_query = f"基于以下用户身体数据分析结果，请分别查询体成分异常和体态异常的相关决策树判断规则。用户数据分析：{user_analysis}。请重点查询BMI、体脂率、去脂体重、高低肩、头前倾、圆肩等相关的异常判断决策树规则。"
+                
+            elif assistant_name == "AbnormalityAnalysisAssistant":
+                # 异常分析Assistant：基于数据和决策树规则生成异常分析
+                user_analysis = previous_responses.get("UserDataAnalysisAssistant", "")
+                knowledge_rules = previous_responses.get("KnowledgeQueryAssistant", "")
+                cur_query = f"请基于用户身体数据和决策树规则，严格按照知识库规则生成1个体成分异常分析和最多4个体态异常分析，并按优先级排序。\n\n用户数据分析：{user_analysis}\n\n决策树规则：{knowledge_rules}"
+                
+            else:
+                # 其他Assistant保持原始查询
+                cur_query = query
+            
+            print(f"{assistant_name}助手开始工作，专门任务：{cur_query}")
             
             # 如果是决策树查询助手，获取工具输出
-            if order_stk[i] == "KnowledgeQueryAssistant":
+            if assistant_name == "KnowledgeQueryAssistant":
                 response, tool_output = get_agent_response(cur_assistant, cur_query, return_tool_output=True)
                 # 解析工具输出中的决策树信息
                 if tool_output:
@@ -460,7 +498,7 @@ def get_multi_agent_response_internal(query, knowledge_base=None):
                                         
                             # 如果没有成功解析任何JSON，但有工具输出，显示原始输出
                             if not collected_knowledge_chunks and tool_output.strip():
-                                collected_knowledge_chunks += f"原始工具输出: {tool_output[:500]}...\n"
+                                collected_knowledge_chunks += f"原始工具输出: {tool_output}...\n"
                                 
                     except Exception as e:
                         print(f"解析决策树工具输出失败: {e}")
@@ -494,12 +532,23 @@ def get_multi_agent_response_internal(query, knowledge_base=None):
             else:
                 response = get_agent_response(cur_assistant, cur_query)
             
-            Agent_Message += f"*{order_stk[i]}*的回复为：{response}\n\n"
+            # 存储当前Assistant的响应
+            previous_responses[assistant_name] = response
+            Agent_Message += f"*{assistant_name}*的回复为：{response}\n\n"
             
             # 如果当前Agent为最后一个Agent，则将其输出作为Multi Agent的输出
             if i == len(order_stk)-1:
-                prompt = f"请参考已知的信息：{Agent_Message}，回答用户的问题：{query}。"
-                multi_agent_response = get_agent_response(SummaryAssistant, prompt)
+                # 为SummaryAssistant准备更详细的提示
+                summary_prompt = f"""请基于以下多智能体分析结果，提供最终的身体异常分析报告。
+
+原始用户问题：{query}
+
+各阶段分析结果：
+{Agent_Message}
+
+请按照指定格式生成包含1个体成分异常和最多4个体态异常的综合分析报告，严格按照知识库优先级排序。"""
+                
+                multi_agent_response = get_agent_response(SummaryAssistant, summary_prompt)
                 
                 # 确保有召回文本段显示
                 if not collected_knowledge_chunks:
@@ -509,9 +558,6 @@ def get_multi_agent_response_internal(query, knowledge_base=None):
                         collected_knowledge_chunks = "多智能体模式：此问题未涉及决策树查询，已通过通用问答处理。"
                 
                 return multi_agent_response, collected_knowledge_chunks
-            # 如果当前Agent不是最后一个Agent，则将上一个Agent的输出response添加到下一轮的query中，作为参考信息
-            else:
-                cur_query = f"你可以参考已知的信息：{response}你要完整地回答用户的问题。问题是：{query}。"
     
     except Exception as e:
         print(f"Multi-agent processing failed: {e}")

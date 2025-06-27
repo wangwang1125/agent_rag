@@ -39,9 +39,11 @@ class MedicalAnalysis:
             # 解析结构化数据
             if isinstance(user_data, str):
                 if user_data.strip().startswith('{'):
+                    print("处理结构化数据")
                     data = json.loads(user_data)
                 else:
                     # 处理文本形式的数据
+                    print("处理文本数据")
                     return MedicalAnalysis._analyze_text_data(user_data)
             else:
                 data = user_data
@@ -89,8 +91,8 @@ class MedicalAnalysis:
                     "头倾斜": eval_info.get("head_slant", 0),
                     "左圆肩": eval_info.get("round_shoulder_left", 0),
                     "右圆肩": eval_info.get("round_shoulder_right", 0),
-                    "左腿X型": eval_info.get("left_leg_xo", 0),
-                    "右腿X型": eval_info.get("right_leg_xo", 0)
+                    "左腿型": eval_info.get("left_leg_xo", 0),
+                    "右腿型": eval_info.get("right_leg_xo", 0)
                 }
                 
                 # 添加到提取指标中
