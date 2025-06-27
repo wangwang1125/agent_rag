@@ -11,9 +11,13 @@ from create_kb import *
 
 # 导入多智能体相关模块
 from dashscope import Assistants, Messages, Runs, Threads
+import dashscope
 import json
 import ast
 from tools import MedicalAnalysis, HealthAssessment
+
+# 设置DashScope API密钥
+dashscope.api_key = "sk-51d30a5436ca433b8ff81e624a23dcac"
 
 DB_PATH = "VectorStore"
 TMP_NAME = "tmp_abcd"
@@ -33,18 +37,18 @@ Settings.embed_model = EMBED_MODEL
 
 # ==================== 多智能体定义 ====================
 
-# 决策级别的agent，决定使用哪些agent，以及它们的运行顺序
+    # 决策级别的agent，决定使用哪些agent，以及它们的运行顺序
 PlannerAssistant = Assistants.create(
     model="qwen-plus",
     name='身体异常分析流程编排机器人',
-    description='你是身体异常分析团队的leader，你需要根据用户提供的身体数据，决定要以怎样的顺序去使用这些assistant',
+    description='你是身体异常分析团队的leader，你需要根据用户提供的结构化身体数据，决定要以怎样的顺序去使用这些assistant',
     instructions="""你的团队中有以下assistant：
-    UserDataAnalysisAssistant：可以分析用户提供的身体数据（如BMI、去脂体重指数等），提取关键指标；
-    KnowledgeQueryAssistant：可以查询身体异常判断决策树知识库，获取相关的判断规则；
-    AbnormalityAnalysisAssistant：可以基于用户数据和决策树规则，进行身体异常分析和判断；
+    UserDataAnalysisAssistant：可以分析用户提供的结构化身体数据（包括体成分、体态、围度等），提取关键指标；
+    KnowledgeQueryAssistant：可以查询身体异常判断决策树知识库，获取体成分和体态相关的判断规则；
+    AbnormalityAnalysisAssistant：可以基于用户数据和决策树规则，进行体成分异常分析（1个）和体态异常分析（最多4个）；
     ChatAssistant：如果用户的问题不是身体数据分析相关，则调用该assistant。
     
-    对于身体数据分析问题，推荐的流程是：["UserDataAnalysisAssistant", "KnowledgeQueryAssistant", "AbnormalityAnalysisAssistant"]
+    对于结构化身体数据分析问题，推荐的流程是：["UserDataAnalysisAssistant", "KnowledgeQueryAssistant", "AbnormalityAnalysisAssistant"]
     对于非身体数据分析问题：["ChatAssistant"]
     
     你的返回形式必须是一个列表，不能返回其它信息。列表中的元素只能为上述的assistant名称。"""
@@ -62,20 +66,20 @@ ChatAssistant = Assistants.create(
 UserDataAnalysisAssistant = Assistants.create(
     model="qwen-plus",
     name='用户身体数据分析机器人',
-    description='一个专业的身体数据分析助手，能够分析用户提供的身体指标数据',
-    instructions='你是一个专业的身体数据分析助手，专门负责分析用户提供的身体数据。请仔细分析用户提供的身体指标（如性别、BMI、去脂体重指数等），提取关键数据信息。',
+    description='一个专业的身体数据分析助手，能够分析用户提供的结构化身体指标数据',
+    instructions='你是一个专业的身体数据分析助手，专门负责分析用户提供的身体数据。请仔细分析用户提供的结构化身体数据，包括体成分数据(mass_info)、围度信息(girth_info)、体态评估(eval_info)等，提取关键数据信息并识别潜在的异常指标。',
     tools=[
         {
             'type': 'function',
             'function': {
-                'name': '身体数据分析',
-                'description': '分析用户提供的身体数据，提取关键指标信息',
+                'name': '结构化身体数据分析',
+                'description': '分析用户提供的结构化身体数据，提取体成分和体态关键指标信息',
                 'parameters': {
                     'type': 'object',
                     'properties': {
                         'user_data': {
                             'type': 'string',
-                            'description': '用户提供的身体数据内容'
+                            'description': '用户提供的结构化身体数据内容，包含mass_info、girth_info、eval_info等'
                         },
                     },
                     'required': ['user_data']},
@@ -88,20 +92,40 @@ UserDataAnalysisAssistant = Assistants.create(
 KnowledgeQueryAssistant = Assistants.create(
     model="qwen-plus",
     name='身体异常决策树查询机器人',
-    description='一个专业的助手，能够查询身体异常判断决策树知识库获取相关判断规则',
-    instructions='你是一个专业的身体异常分析助手，专门负责查询身体异常判断决策树知识库。根据用户的身体数据，查询相关的判断规则和决策树信息。',
+    description='一个专业的助手，能够查询身体异常判断决策树知识库获取体成分和体态异常相关判断规则',
+    instructions='你是一个专业的身体异常分析助手，专门负责查询身体异常判断决策树知识库。根据用户的身体数据，分别查询体成分异常和体态异常的相关判断规则和决策树信息。需要重点关注体成分指标（BMI、体脂率、去脂体重等）和体态指标（高低肩、头前倾、圆肩等）。',
     tools=[
         {
             'type': 'function',
             'function': {
-                'name': '身体异常决策树查询',
-                'description': '查询身体异常判断决策树知识库获取相关的判断规则',
+                'name': '体成分异常决策树查询',
+                'description': '查询体成分异常判断决策树知识库获取相关的判断规则',
                 'parameters': {
                     'type': 'object',
                     'properties': {
                         'query_text': {
                             'type': 'string',
-                            'description': '要查询的身体指标相关内容，通常是BMI、去脂体重指数等身体数据'
+                            'description': '要查询的体成分指标相关内容，如BMI、体脂率、去脂体重指数等'
+                        },
+                        'knowledge_base_name': {
+                            'type': 'string',
+                            'description': '指定的知识库名称，可选参数'
+                        }
+                    },
+                    'required': ['query_text']},
+            }
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': '体态异常决策树查询',
+                'description': '查询体态异常判断决策树知识库获取相关的判断规则',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'query_text': {
+                            'type': 'string',
+                            'description': '要查询的体态指标相关内容，如高低肩、头前倾、圆肩、腿型等'
                         },
                         'knowledge_base_name': {
                             'type': 'string',
@@ -118,24 +142,75 @@ KnowledgeQueryAssistant = Assistants.create(
 AbnormalityAnalysisAssistant = Assistants.create(
     model="qwen-plus",
     name='身体异常分析机器人',
-    description='一个专业的身体异常分析助手，能够基于用户数据和决策树规则进行异常判断',
-    instructions='你是一个专业的身体异常分析助手，专门负责综合分析。请严格按照从决策树知识库获取的判断规则，结合用户的身体数据进行异常分析。你必须：1) 明确展示应用的决策规则条件；2) 说明用户数据如何匹配这些条件；3) 根据匹配结果得出具体的异常结论；4) 在回复中详细展示整个决策流程。',
+    description='一个专业的身体异常分析助手，能够基于用户数据和决策树规则进行体成分和体态异常判断',
+    instructions="""你是一个专业的身体异常分析专家，专门负责根据知识库中的决策树规则和用户身体数据进行精确的异常判断。
+
+你必须严格按照以下要求执行：
+
+【核心要求】
+1. 必须生成1个体成分异常分析和最多4个体态异常分析
+2. 严格按照知识库决策树规则进行判断，不得擅自推测
+3. 每个异常判断都必须展示完整的决策流程
+4. 按照知识库中的优先级排序异常
+
+【分析流程】
+1. 解析用户身体数据，提取关键指标
+2. 解析知识库决策树规则，识别判断条件和异常结论
+3. 将用户数据与决策树条件进行匹配
+4. 展示详细的判断过程：条件→用户数据→匹配结果→结论
+5. 按优先级排序并输出最终结论
+
+【输出格式要求】
+对于每个异常分析，必须包含：
+- 应用的决策规则条件
+- 用户数据如何匹配这些条件  
+- 具体的匹配过程和计算
+- 基于匹配结果得出的结论
+- 完整的决策流程展示
+
+【严格限制】
+- 只能基于知识库中存在的决策规则进行判断
+- 不能根据经验或常识做出判断
+- 必须展示从条件判断到结论的完整过程
+- 如果知识库中没有相关规则，必须明确说明无法判断
+
+你的分析必须专业、准确、可追溯，确保每个结论都有明确的决策依据。""",
     tools=[
         {
             'type': 'function',
             'function': {
-                'name': '身体异常综合分析',
-                'description': '基于用户身体数据和决策树规则，进行身体异常分析和判断',
+                'name': '体成分异常分析',
+                'description': '基于用户体成分数据和决策树规则，进行严格的体成分异常分析和判断，必须生成1个体成分异常分析',
                 'parameters': {
                     'type': 'object',
                     'properties': {
                         'user_data': {
                             'type': 'string',
-                            'description': '用户身体数据分析结果'
+                            'description': '用户体成分数据分析结果，包含BMI、体脂率、去脂体重等关键指标'
                         },
                         'decision_rules': {
                             'type': 'string',
-                            'description': '从决策树知识库获得的相关判断规则'
+                            'description': '从决策树知识库获得的体成分相关判断规则，包含异常结论和判断流程'
+                        }
+                    },
+                    'required': ['user_data', 'decision_rules']},
+            }
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': '体态异常分析',
+                'description': '基于用户体态数据和决策树规则，进行严格的体态异常分析和判断，最多生成4个体态异常分析',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'user_data': {
+                            'type': 'string',
+                            'description': '用户体态数据分析结果，包含高低肩、头前倾、圆肩等体态指标'
+                        },
+                        'decision_rules': {
+                            'type': 'string',
+                            'description': '从决策树知识库获得的体态相关判断规则，包含异常结论和判断流程'
                         }
                     },
                     'required': ['user_data', 'decision_rules']},
@@ -149,14 +224,60 @@ SummaryAssistant = Assistants.create(
     model="qwen-plus",
     name='身体异常总结机器人',
     description='一个专业的身体异常分析助手，根据用户的身体数据与各个分析阶段的参考信息，提供全面、完整的异常分析结论',
-    instructions='你是一个专业的身体异常分析助手，负责最终的总结分析。请根据用户的身体数据以及数据分析、决策树查询、异常判断等各个阶段的信息，提供全面、专业的身体异常分析结论。请注意：你的分析结果仅供参考，建议用户咨询专业的健康顾问或医生。'
+    instructions="""你是一个专业的身体异常分析总结专家，负责基于多智能体分析结果提供最终的综合报告。
+
+你必须严格按照以下要求进行总结：
+
+【核心任务】
+1. 总结分析出1个体成分异常和最多4个体态异常
+2. 严格按照知识库中的优先级排序异常结论
+3. 展示完整的决策判断流程
+4. 提供基于决策树规则的专业结论
+
+【总结格式要求】
+## 身体异常分析报告
+
+### 一、体成分异常分析
+- **异常结论**: [基于决策树规则得出的结论]
+- **判断依据**: [具体的决策规则条件]
+- **数据匹配**: [用户数据如何满足条件]
+- **决策流程**: [从条件到结论的完整过程]
+- **优先级**: [知识库中的优先级]
+
+### 二、体态异常分析（按优先级排序）
+1. **[优先级1] 异常名称**
+   - 判断依据: [决策规则]
+   - 数据匹配: [用户数据匹配情况]
+   - 决策流程: [判断过程]
+
+2. **[优先级X] 异常名称**
+   - 判断依据: [决策规则]
+   - 数据匹配: [用户数据匹配情况]
+   - 决策流程: [判断过程]
+
+### 三、综合结论
+- 基于知识库决策树规则，用户存在X项异常
+- 按优先级排序的风险等级
+- 建议采取的措施
+
+【严格要求】
+- 只能基于知识库决策树规则得出结论
+- 必须展示每个异常的完整判断流程
+- 严格按照优先级排序（数字越小优先级越高）
+- 如果某类异常未发现，需明确说明
+- 每个结论都要有明确的决策依据
+
+【免责声明】
+此分析结果严格基于知识库决策树规则，仅供参考，建议咨询专业的健康顾问或医生获取准确诊断。"""
 )
 
 # 将工具函数的name映射到函数本体
 function_mapper = {
-    "身体数据分析": MedicalAnalysis.analyze_symptoms,
-    "身体异常决策树查询": MedicalAnalysis.query_medical_knowledge,
-    "身体异常综合分析": HealthAssessment.comprehensive_analysis
+    "结构化身体数据分析": MedicalAnalysis.analyze_symptoms,
+    "体成分异常决策树查询": MedicalAnalysis.query_medical_knowledge,
+    "体态异常决策树查询": MedicalAnalysis.query_medical_knowledge,
+    "体成分异常分析": HealthAssessment.body_composition_analysis,
+    "体态异常分析": HealthAssessment.posture_analysis
 }
 
 # 将Agent的name映射到Agent本体
@@ -184,32 +305,53 @@ def get_agent_response(assistant, message='', return_tool_output=False):
         return ("抱歉，处理过程中出现错误", tool_output) if return_tool_output else "抱歉，处理过程中出现错误"
     
     if run_status.required_action:
-        f = run_status.required_action.submit_tool_outputs.tool_calls[0].function
-        func_name = f['name']
-        param = json.loads(f['arguments'])
-        print("func_name",func_name)
-    
-        if func_name in function_mapper:
-            # 如果是身体异常决策树查询，添加知识库参数
-            if func_name == "身体异常决策树查询" and 'knowledge_base_name' not in param:
-                # 从全局变量或传递的参数中获取知识库名称
-                import inspect
-                frame = inspect.currentframe()
-                try:
-                    # 尝试从调用堆栈中获取knowledge_base参数
-                    caller_locals = frame.f_back.f_back.f_locals
-                    if 'knowledge_base' in caller_locals:
-                        param['knowledge_base_name'] = caller_locals['knowledge_base']
-                finally:
-                    del frame
-            output = function_mapper[func_name](**param)
-            tool_output = output  # 保存工具输出
-        else:    
-            output = ""
+        tool_calls = run_status.required_action.submit_tool_outputs.tool_calls
+        tool_outputs = []
+        all_tool_output = ""  # 存储所有工具输出
         
-        tool_outputs = [{
-            'output': output
-        }]
+        # 处理多个工具调用
+        for tool_call in tool_calls:
+            f = tool_call.function
+            func_name = f['name']  
+            param = json.loads(f['arguments'])
+            print("func_name", func_name)
+        
+            if func_name in function_mapper:
+                # 如果是决策树查询，添加知识库参数
+                if func_name in ["体成分异常决策树查询", "体态异常决策树查询"] and 'knowledge_base_name' not in param:
+                    # 从全局变量或传递的参数中获取知识库名称
+                    import inspect
+                    frame = inspect.currentframe()
+                    try:
+                        # 尝试从调用堆栈中获取knowledge_base参数
+                        caller_locals = frame.f_back.f_back.f_locals
+                        if 'knowledge_base' in caller_locals:
+                            param['knowledge_base_name'] = caller_locals['knowledge_base']
+                    finally:
+                        del frame
+                
+                try:
+                    output = function_mapper[func_name](**param)
+                    # 确保输出不为空
+                    if output is None:
+                        output = '{"error": "工具函数返回空值"}'
+                    elif not isinstance(output, str):
+                        output = str(output)
+                    
+                    all_tool_output += f"{func_name}: {output}\n"  # 累积工具输出
+                except Exception as e:
+                    print(f"工具函数执行失败 {func_name}: {e}")
+                    output = f'{{"error": "工具函数执行失败: {str(e)}"}}'
+                    all_tool_output += f"{func_name}: {output}\n"
+            else:    
+                output = '{"error": "未知的工具函数"}'
+            
+            tool_outputs.append({
+                'tool_call_id': tool_call.id,
+                'output': output
+            })
+        
+        tool_output = all_tool_output  # 保存所有工具输出
         run = Runs.submit_tool_outputs(run.id,
                                        thread_id=thread.id,
                                        tool_outputs=tool_outputs)
@@ -235,7 +377,32 @@ def get_multi_agent_response_internal(query, knowledge_base=None):
         assistant_order = get_agent_response(PlannerAssistant, query)
         print("assistant_order", assistant_order)
         
-        order_stk = ast.literal_eval(assistant_order)
+        # 安全地解析Assistant顺序
+        try:
+            if isinstance(assistant_order, str):
+                # 尝试不同的解析方法
+                assistant_order = assistant_order.strip()
+                if assistant_order.startswith('[') and assistant_order.endswith(']'):
+                    # 如果是列表格式
+                    order_stk = ast.literal_eval(assistant_order)
+                elif assistant_order.startswith('{') and assistant_order.endswith('}'):
+                    # 如果是JSON格式
+                    order_data = json.loads(assistant_order)
+                    order_stk = order_data if isinstance(order_data, list) else [assistant_order]
+                else:
+                    # 尝试从文本中提取列表
+                    import re
+                    list_match = re.search(r'\[(.*?)\]', assistant_order)
+                    if list_match:
+                        order_stk = ast.literal_eval('[' + list_match.group(1) + ']')
+                    else:
+                        # 默认处理
+                        order_stk = ["UserDataAnalysisAssistant", "KnowledgeQueryAssistant", "AbnormalityAnalysisAssistant"]
+            else:
+                order_stk = assistant_order if isinstance(assistant_order, list) else [str(assistant_order)]
+        except Exception as e:
+            print(f"解析assistant_order失败: {e}, 使用默认顺序")
+            order_stk = ["UserDataAnalysisAssistant", "KnowledgeQueryAssistant", "AbnormalityAnalysisAssistant"]
         cur_query = query
         Agent_Message = ""
         
@@ -249,23 +416,78 @@ def get_multi_agent_response_internal(query, knowledge_base=None):
                 # 解析工具输出中的决策树信息
                 if tool_output:
                     try:
-                        kb_data = json.loads(tool_output)
-                        if "retrieved_chunks" in kb_data:
-                            chunks = kb_data["retrieved_chunks"]
-                            for chunk in chunks[:5]:  # 只显示前5个
-                                collected_knowledge_chunks += f"## {chunk.get('rule_id', 'N/A')}:\n{chunk.get('content', '')}\n置信度: {chunk.get('confidence_score', 'N/A')}\n\n"
+                        print(f"工具输出内容: {tool_output}")  # 调试信息
+                        # 处理多个工具输出的情况
+                        if isinstance(tool_output, str) and tool_output.strip():
+                            # 分割多个工具输出
+                            tool_outputs = tool_output.strip().split('\n')
+                            for output_line in tool_outputs:
+                                output_line = output_line.strip()
+                                if not output_line:  # 跳过空行
+                                    continue
+                                    
+                                if ':' in output_line and output_line.startswith((
+                                    '体成分异常决策树查询:', '体态异常决策树查询:')):
+                                    # 解析带前缀的JSON输出
+                                    try:
+                                        _, json_part = output_line.split(':', 1)
+                                        json_part = json_part.strip()
+                                        if json_part and json_part.startswith('{'):
+                                            kb_data = json.loads(json_part)
+                                            if "retrieved_chunks" in kb_data:
+                                                chunks = kb_data["retrieved_chunks"]
+                                                query_type = kb_data.get("query_type", "决策树查询")
+                                                collected_knowledge_chunks += f"### {query_type}结果：\n"
+                                                for chunk in chunks[:5]:  # 只显示前5个
+                                                    collected_knowledge_chunks += f"## {chunk.get('rule_id', 'N/A')}:\n{chunk.get('content', '')}\n置信度: {chunk.get('confidence_score', 'N/A')}\n\n"
+                                    except json.JSONDecodeError as je:
+                                        print(f"JSON解析错误 - 前缀格式: {je}")
+                                        continue
+                                        
+                                elif output_line.startswith('{') and output_line.endswith('}'):
+                                    # 直接的JSON输出
+                                    try:
+                                        kb_data = json.loads(output_line)
+                                        if "retrieved_chunks" in kb_data:
+                                            chunks = kb_data["retrieved_chunks"]
+                                            query_type = kb_data.get("query_type", "决策树查询")
+                                            collected_knowledge_chunks += f"### {query_type}结果：\n"
+                                            for chunk in chunks[:5]:
+                                                collected_knowledge_chunks += f"## {chunk.get('rule_id', 'N/A')}:\n{chunk.get('content', '')}\n置信度: {chunk.get('confidence_score', 'N/A')}\n\n"
+                                    except json.JSONDecodeError as je:
+                                        print(f"JSON解析错误 - 直接格式: {je}")
+                                        continue
+                                        
+                            # 如果没有成功解析任何JSON，但有工具输出，显示原始输出
+                            if not collected_knowledge_chunks and tool_output.strip():
+                                collected_knowledge_chunks += f"原始工具输出: {tool_output[:500]}...\n"
+                                
                     except Exception as e:
                         print(f"解析决策树工具输出失败: {e}")
+                        # 如果解析失败，直接显示原始输出
+                        if tool_output and tool_output.strip():
+                            collected_knowledge_chunks += f"工具输出解析失败，原始内容: {tool_output[:500]}...\n"
                         
-                # 如果还没有获取到决策树信息，尝试直接查询
+                # 如果还没有获取到决策树信息，尝试直接查询体成分和体态异常
                 if not collected_knowledge_chunks and knowledge_base:
                     try:
                         from tools import MedicalAnalysis
-                        kb_result = MedicalAnalysis.query_medical_knowledge(query, knowledge_base)
-                        kb_data = json.loads(kb_result)
-                        if "retrieved_chunks" in kb_data:
-                            chunks = kb_data["retrieved_chunks"]
-                            for chunk in chunks[:5]:
+                        # 查询体成分异常
+                        composition_result = MedicalAnalysis.query_medical_knowledge("体成分异常 BMI 体脂率", knowledge_base)
+                        composition_data = json.loads(composition_result)
+                        if "retrieved_chunks" in composition_data:
+                            chunks = composition_data["retrieved_chunks"]
+                            collected_knowledge_chunks += "### 体成分异常相关规则：\n"
+                            for chunk in chunks[:3]:  # 获取前3个体成分相关
+                                collected_knowledge_chunks += f"## {chunk.get('rule_id', 'N/A')}:\n{chunk.get('content', '')}\n置信度: {chunk.get('confidence_score', 'N/A')}\n\n"
+                        
+                        # 查询体态异常
+                        posture_result = MedicalAnalysis.query_medical_knowledge("体态异常 高低肩 头前倾 圆肩", knowledge_base)
+                        posture_data = json.loads(posture_result)
+                        if "retrieved_chunks" in posture_data:
+                            chunks = posture_data["retrieved_chunks"]
+                            collected_knowledge_chunks += "### 体态异常相关规则：\n"
+                            for chunk in chunks[:4]:  # 获取前4个体态相关
                                 collected_knowledge_chunks += f"## {chunk.get('rule_id', 'N/A')}:\n{chunk.get('content', '')}\n置信度: {chunk.get('confidence_score', 'N/A')}\n\n"
                     except Exception as e:
                         print(f"直接查询决策树知识库失败: {e}")
@@ -391,3 +613,68 @@ def get_unified_response(multi_modal_input, history, mode, model, temperature, m
     else:
         # RAG模式
         yield from get_model_response(multi_modal_input, history, model, temperature, max_tokens, history_round, knowledge_base, similarity_threshold, chunk_cnt)
+        
+def test_body_analysis():
+    """测试身体异常分析的多智能体流程"""
+    # 示例用户数据
+    user_body_data = {
+        "mass_info":{
+            "WT":{"l":25.8, "m":30.4, "h":35, "v":48.7, "status":3},
+            "FFM":{"l":28.7, "m":31.9, "h":35.1, "v":4.9, "status":1},
+            "TBW":{"l":37.285292814, "m":41.412983381000004, "h":45.540673948000006, "v":34.110146224000005, "status":1},
+            "BMI":{"l":18.5, "m":22, "h":24, "v":23.4, "status":2},
+            "PBF":{"l":10, "m":15, "h":20, "v":33.7, "status":3},
+            "BMR":{"l":1432.4, "m":1591.6, "h":1750.8, "v":1413.1, "status":1},
+            "WHR":{"l":0.8, "m":0.85, "h":0.9, "v":0.88, "status":2},
+            "SM":{"l":28.440241599000004, "m":31.842184374000002, "h":35.289486386, "v":25.764046616, "status":1},
+            "PROTEIN":{"l":9.979032140000001, "m":11.113013065, "h":12.24699399, "v":9.162565874, "status":1},
+            "ICW":{"l":23.133210870000003, "m":25.718687379000002, "h":28.304163888, "v":21.092045205, "status":1},
+            "ECW":{"l":14.152081944, "m":15.739655239000003, "h":17.327228534000003, "v":13.471693389, "status":1},
+            "VAG":{"l":0.9, "h":10, "m":0, "v":9, "status":2}
+        },
+        "girth_info":{
+            "left_calf":40.9, "right_calf":41.4, "neck":37.083999999999996,
+            "waist":87.884, "hip":103.37800000000001, "left_upper_arm":28.194, "right_upper_arm":28.448
+        },
+        "eval_info":{
+            "id":20985, "scan_id":"37123456789136-950b07ba-875a-41b7-8850-271bf5b79764",
+            "high_low_shoulder":3.302, "head_slant":0, "head_forward":1.5,
+            "left_leg_xo":179.5, "right_leg_xo":174.3, "pelvis_forward":176.5,
+            "left_knee_check":183.6, "right_knee_check":175.9,
+            "round_shoulder_left":7.7, "round_shoulder_right":19.6, "create_time":None
+        },
+        "eval_conclusion":{
+            "head_slant":{"conclusion_key":"body-product.bsEval.headSlant.normal", "val":0},
+            "high_low_shoulder":{"conclusion_key":"body-product.bsEval.highLowShoudler.left", "val":3.302},
+            "head_forward":{"conclusion_key":"body-product.bsEval.headForward.head", "val":1.5},
+            "round_shoulder_left":{"conclusion_key":"body-product.bsEval.roundShoulder.left", "val":7.7},
+            "round_shoulder_right":{"conclusion_key":"body-product.bsEval.roundShoulder.right", "val":19.6},
+            "is_new_math_tt":1
+        },
+        "shoulder_info":{
+            "id":2192, "scan_id":"37123456789136-950b07ba-875a-41b7-8850-271bf5b79764",
+            "result":1, "left_abduction":173.2, "right_abduction":181.1,
+            "left_adduction":174.1, "right_adduction":171, "create_time":1724313842
+        },
+        "user_info":{"height":174, "age":30, "sex":1},
+        "isForeign":"0", "unit":"imperial", "lang": "zh-CN"
+    }
+    
+    # 转换为字符串格式供分析使用
+    query = f"请分析以下身体数据并生成1个体成分异常和最多4个体态异常分析：{json.dumps(user_body_data, ensure_ascii=False)}"
+    
+    # 调用多智能体分析
+    try:
+        response, knowledge_chunks = get_multi_agent_response_internal(query, "medical_kb")
+        print("=== 多智能体分析结果 ===")
+        print(f"分析结果：{response}")
+        print("\n=== 知识库召回信息 ===")
+        print(knowledge_chunks)
+        return response, knowledge_chunks
+    except Exception as e:
+        print(f"测试失败：{e}")
+        return None, None
+
+if __name__ == "__main__":
+    # 运行测试
+    test_body_analysis()
