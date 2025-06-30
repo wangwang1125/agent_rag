@@ -1,4 +1,6 @@
 import os
+import logging
+import warnings
 from openai import OpenAI
 from llama_index.core import StorageContext,load_index_from_storage,Settings
 from llama_index.embeddings.dashscope import (
@@ -16,8 +18,82 @@ import json
 import ast
 from tools import MedicalAnalysis, HealthAssessment
 
+# 禁用DashScope和相关库的日志输出
+logging.getLogger('dashscope').setLevel(logging.ERROR)
+logging.getLogger('openai').setLevel(logging.ERROR)
+logging.getLogger('httpx').setLevel(logging.ERROR)
+logging.getLogger('httpcore').setLevel(logging.ERROR)
+logging.getLogger('requests').setLevel(logging.ERROR)
+logging.getLogger('urllib3').setLevel(logging.ERROR)
+
+# 禁用所有警告
+warnings.filterwarnings('ignore')
+
+# 设置根日志级别为WARNING，避免调试信息输出
+logging.basicConfig(level=logging.WARNING)
+
+# 全局过滤DashScope调试输出的解决方案
+import sys
+import contextlib
+
+class DashScopeOutputFilter:
+    """全局过滤DashScope JSON调试输出的类"""
+    def __init__(self, original_stdout, original_stderr):
+        self.original_stdout = original_stdout
+        self.original_stderr = original_stderr
+        self.suppress_next_newlines = False  # 标记是否需要抑制后续的换行
+        
+    def write(self, text):
+        if text and isinstance(text, str):
+            # 过滤DashScope的JSON调试输出
+            text_lower = text.lower()
+            if (text.strip().startswith('{') and 
+                any(keyword in text for keyword in ['assistant_id', 'thread_id', 'run_id', 'object": "thread.run'])):
+                self.suppress_next_newlines = True  # 设置标记，抑制后续换行
+                return  # 不输出
+            if any(keyword in text_lower for keyword in [
+                'status_code', 'request_id', 'created_at', 'instructions'
+            ]) and text.strip().startswith('{'):
+                self.suppress_next_newlines = True  # 设置标记，抑制后续换行
+                return  # 不输出
+            
+            # 如果当前在抑制模式，且文本只包含空白字符（换行符、空格等），则不输出
+            if self.suppress_next_newlines:
+                if text.strip() == '':  # 只包含空白字符
+                    return  # 不输出空白行
+                else:
+                    # 遇到非空白内容，取消抑制模式
+                    self.suppress_next_newlines = False
+                    
+        # 输出到原始stdout
+        self.original_stdout.write(text)
+        
+    def flush(self):
+        self.original_stdout.flush()
+
+# 应用全局过滤器
+original_stdout = sys.stdout
+original_stderr = sys.stderr
+sys.stdout = DashScopeOutputFilter(original_stdout, original_stderr)
+
 # 设置DashScope API密钥
 dashscope.api_key = "sk-51d30a5436ca433b8ff81e624a23dcac"
+
+# 进一步控制DashScope输出 - 设置环境变量
+os.environ['DASHSCOPE_DEBUG'] = 'false'
+os.environ['DASHSCOPE_VERBOSE'] = 'false'
+os.environ['OPENAI_LOG_LEVEL'] = 'error'
+
+# 如果DashScope有配置选项，设置为静默模式
+try:
+    dashscope.api_base = dashscope.api_base  # 保持默认值
+    # 尝试设置调试模式为False（如果支持）
+    if hasattr(dashscope, 'debug'):
+        dashscope.debug = False
+    if hasattr(dashscope, 'verbose'):
+        dashscope.verbose = False
+except:
+    pass
 
 DB_PATH = "VectorStore"
 TMP_NAME = "tmp_abcd"
@@ -93,7 +169,13 @@ KnowledgeQueryAssistant = Assistants.create(
     model="qwen-plus",
     name='身体异常决策树查询机器人',
     description='一个专业的助手，能够查询身体异常判断决策树知识库获取体成分和体态异常相关判断规则',
-    instructions='你是一个专业的身体异常分析助手，专门负责查询身体异常判断决策树知识库。根据用户的身体数据，分别查询体成分异常和体态异常的相关判断规则和决策树信息。需要重点关注体成分指标（BMI、体脂率、去脂体重等）和体态指标（高低肩、头前倾、圆肩等）以及体围等指标。',
+    instructions='''你是一个专业的身体异常分析助手，专门负责查询身体异常判断决策树知识库。
+
+【重要】：你必须分别调用两个工具函数：
+1. 先调用"体成分异常决策树查询"工具，查询BMI、体脂率、去脂体重等体成分相关的判断规则
+2. 再调用"体态异常决策树查询"工具，查询高低肩、头前倾、圆肩、头侧歪、骨盆前移等体态相关的判断规则
+
+无论用户数据中是否包含具体的数值指标，都要调用这两个工具函数来获取完整的决策树规则。这样可以确保后续的异常分析能够获得全面的判断依据。''',
     tools=[
         {
             'type': 'function',
@@ -298,23 +380,24 @@ def get_agent_response(assistant, message='', return_tool_output=False):
     run = Runs.create(thread.id, assistant_id=assistant.id)
     run_status = Runs.wait(run.id, thread_id=thread.id)
     
-    tool_output = None  # 存储工具输出
+    all_tool_output = ""  # 存储所有工具输出
+    print("run_status:",run_status)
     
     if run_status.status == 'failed':
         print('run failed:')
-        return ("抱歉，处理过程中出现错误", tool_output) if return_tool_output else "抱歉，处理过程中出现错误"
+        return ("抱歉，处理过程中出现错误", all_tool_output) if return_tool_output else "抱歉，处理过程中出现错误"
     
-    if run_status.required_action:
+    # 🔥 循环处理多个工具调用
+    while run_status.required_action:
         tool_calls = run_status.required_action.submit_tool_outputs.tool_calls
         tool_outputs = []
-        all_tool_output = ""  # 存储所有工具输出
         
         # 处理多个工具调用
         for tool_call in tool_calls:
             f = tool_call.function
             func_name = f['name']  
             param = json.loads(f['arguments'])
-            print("func_name", func_name)
+            print(f"调用工具: {func_name}")
         
             if func_name in function_mapper:
                 # 如果是决策树查询，添加知识库参数
@@ -339,29 +422,34 @@ def get_agent_response(assistant, message='', return_tool_output=False):
                         output = str(output)
                     
                     all_tool_output += f"{func_name}: {output}\n"  # 累积工具输出
+                    print(f"工具 {func_name} 执行成功")
                 except Exception as e:
                     print(f"工具函数执行失败 {func_name}: {e}")
                     output = f'{{"error": "工具函数执行失败: {str(e)}"}}'
                     all_tool_output += f"{func_name}: {output}\n"
             else:    
                 output = '{"error": "未知的工具函数"}'
+                print(f"未知工具函数: {func_name}")
             
             tool_outputs.append({
                 'tool_call_id': tool_call.id,
                 'output': output
             })
         
-        tool_output = all_tool_output  # 保存所有工具输出
+        # 提交工具输出
         run = Runs.submit_tool_outputs(run.id,
                                        thread_id=thread.id,
                                        tool_outputs=tool_outputs)
         run_status = Runs.wait(run.id, thread_id=thread.id)
+        print(f"工具调用完成，状态: {run_status.status}")
     
+    # 获取最终响应
     run_status = Runs.get(run.id, thread_id=thread.id)
     msgs = Messages.list(thread.id)
     response = msgs['data'][0]['content'][0]['text']['value']
+    
     if return_tool_output:
-        return response, tool_output
+        return response, all_tool_output
     else:
         return response
 
@@ -452,50 +540,91 @@ def get_multi_agent_response_internal(query, knowledge_base=None):
             if assistant_name == "KnowledgeQueryAssistant":
                 response, tool_output = get_agent_response(cur_assistant, cur_query, return_tool_output=True)
                 # 解析工具输出中的决策树信息
+                print("response", response)
                 if tool_output:
                     try:
                         print(f"工具输出内容: {tool_output}")  # 调试信息
                         # 处理多个工具输出的情况
                         if isinstance(tool_output, str) and tool_output.strip():
-                            # 分割多个工具输出
-                            tool_outputs = tool_output.strip().split('\n')
-                            for output_line in tool_outputs:
-                                output_line = output_line.strip()
-                                if not output_line:  # 跳过空行
-                                    continue
+                            # 使用正则表达式来查找完整的JSON块
+                            import re
+                            
+                            # 查找所有的JSON块（从{开始到}结束）
+                            json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+                            json_matches = re.findall(json_pattern, tool_output, re.DOTALL)
+                            
+                            # 如果找不到完整的JSON，尝试查找带前缀的JSON
+                            if not json_matches:
+                                # 查找带前缀的输出行
+                                lines = tool_output.strip().split('\n')
+                                current_json = ""
+                                in_json = False
+                                brace_count = 0
+                                
+                                for line in lines:
+                                    line = line.strip()
+                                    if not line:
+                                        continue
                                     
-                                if ':' in output_line and output_line.startswith((
-                                    '体成分异常决策树查询:', '体态异常决策树查询:')):
-                                    # 解析带前缀的JSON输出
+                                    # 检查是否是前缀行
+                                    if line.startswith(('体成分异常决策树查询:', '体态异常决策树查询:')):
+                                        # 提取前缀后的内容
+                                        if ':' in line:
+                                            prefix, content = line.split(':', 1)
+                                            content = content.strip()
+                                            if content.startswith('{'):
+                                                current_json = content
+                                                in_json = True
+                                                brace_count = content.count('{') - content.count('}')
+                                                if brace_count == 0:
+                                                    json_matches.append(current_json)
+                                                    current_json = ""
+                                                    in_json = False
+                                    elif in_json:
+                                        # 继续收集JSON内容
+                                        current_json += " " + line
+                                        brace_count += line.count('{') - line.count('}')
+                                        if brace_count == 0:
+                                            json_matches.append(current_json)
+                                            current_json = ""
+                                            in_json = False
+                                    elif line.startswith('{'):
+                                        # 直接的JSON开始
+                                        current_json = line
+                                        in_json = True
+                                        brace_count = line.count('{') - line.count('}')
+                                        if brace_count == 0:
+                                            json_matches.append(current_json)
+                                            current_json = ""
+                                            in_json = False
+                            
+                            # 解析找到的JSON块
+                            for json_str in json_matches:
+                                try:
+                                    print(f"尝试解析JSON: {repr(json_str[:100])}")  # 调试信息
+                                    
+                                    # 尝试解析JSON
                                     try:
-                                        _, json_part = output_line.split(':', 1)
-                                        json_part = json_part.strip()
-                                        if json_part and json_part.startswith('{'):
-                                            kb_data = json.loads(json_part)
-                                            if "retrieved_chunks" in kb_data:
-                                                chunks = kb_data["retrieved_chunks"]
-                                                query_type = kb_data.get("query_type", "决策树查询")
-                                                collected_knowledge_chunks += f"### {query_type}结果：\n"
-                                                for chunk in chunks[:5]:  # 只显示前5个
-                                                    collected_knowledge_chunks += f"## {chunk.get('rule_id', 'N/A')}:\n{chunk.get('content', '')}\n置信度: {chunk.get('confidence_score', 'N/A')}\n\n"
-                                    except json.JSONDecodeError as je:
-                                        print(f"JSON解析错误 - 前缀格式: {je}")
-                                        continue
-                                        
-                                elif output_line.startswith('{') and output_line.endswith('}'):
-                                    # 直接的JSON输出
-                                    try:
-                                        kb_data = json.loads(output_line)
-                                        if "retrieved_chunks" in kb_data:
-                                            chunks = kb_data["retrieved_chunks"]
-                                            query_type = kb_data.get("query_type", "决策树查询")
-                                            collected_knowledge_chunks += f"### {query_type}结果：\n"
-                                            for chunk in chunks[:5]:
-                                                collected_knowledge_chunks += f"## {chunk.get('rule_id', 'N/A')}:\n{chunk.get('content', '')}\n置信度: {chunk.get('confidence_score', 'N/A')}\n\n"
-                                    except json.JSONDecodeError as je:
-                                        print(f"JSON解析错误 - 直接格式: {je}")
-                                        continue
-                                        
+                                        kb_data = json.loads(json_str)
+                                    except json.JSONDecodeError:
+                                        # 如果JSON解析失败，尝试使用ast.literal_eval解析Python字典格式
+                                        try:
+                                            kb_data = ast.literal_eval(json_str)
+                                        except (ValueError, SyntaxError) as e:
+                                            print(f"无法解析JSON/字典格式: {e}")
+                                            continue
+                                    
+                                    if isinstance(kb_data, dict) and "retrieved_chunks" in kb_data:
+                                        chunks = kb_data["retrieved_chunks"]
+                                        query_type = kb_data.get("query_type", "决策树查询")
+                                        collected_knowledge_chunks += f"### {query_type}结果：\n"
+                                        for chunk in chunks[:5]:  # 只显示前5个
+                                            collected_knowledge_chunks += f"## {chunk.get('rule_id', 'N/A')}:\n{chunk.get('content', '')}\n置信度: {chunk.get('confidence_score', 'N/A')}\n\n"
+                                except Exception as je:
+                                    print(f"JSON解析错误: {je}")
+                                    print(f"原始JSON字符串: {repr(json_str)}")
+                                    continue
+                            
                             # 如果没有成功解析任何JSON，但有工具输出，显示原始输出
                             if not collected_knowledge_chunks and tool_output.strip():
                                 collected_knowledge_chunks += f"原始工具输出: {tool_output}...\n"
@@ -714,8 +843,8 @@ def test_body_analysis():
         response, knowledge_chunks = get_multi_agent_response_internal(query, "medical_kb")
         print("=== 多智能体分析结果 ===")
         print(f"分析结果：{response}")
-        print("\n=== 知识库召回信息 ===")
-        print(knowledge_chunks)
+        #print("\n=== 知识库召回信息 ===")
+        #print(knowledge_chunks)
         return response, knowledge_chunks
     except Exception as e:
         print(f"测试失败：{e}")

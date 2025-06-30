@@ -175,8 +175,46 @@ class MedicalAnalysis:
                 extracted_metrics["去脂体重指数"] = float(ffmi_match.group(1))
                 break
         
+        # 🔥 新增：提取体态相关指标
+        posture_keywords = {
+            "高低肩": ["高低肩", "肩膀高低", "肩高低", "肩不平"],
+            "头前倾": ["头前倾", "头向前", "头部前倾", "颈前伸"],
+            "头侧歪": ["头侧歪", "头倾斜", "头歪", "头侧倾", "头偏"],
+            "头倾斜": ["头倾斜", "头侧歪", "头歪斜"],
+            "骨盆前移": ["骨盆前移", "骨盆前倾", "盆骨前移"],
+            "圆肩": ["圆肩", "肩内扣", "肩膀内扣", "含胸"],
+            "驼背": ["驼背", "弓背", "背部弯曲"],
+            "左圆肩": ["左圆肩", "左肩内扣"],
+            "右圆肩": ["右圆肩", "右肩内扣"],
+            "左腿X型": ["左腿x型", "左腿x", "左腿外翻"],
+            "右腿X型": ["右腿x型", "右腿x", "右腿外翻"],
+            "腿型异常": ["腿型", "腿形", "x型腿", "o型腿"]
+        }
+        
+        for main_term, variations in posture_keywords.items():
+            for variation in variations:
+                if variation in data_lower:
+                    extracted_metrics[main_term] = "存在"  # 标记存在该体态问题
+                    break
+        
+        # 数据分类
+        data_categories = []
+        composition_metrics = [k for k in extracted_metrics.keys() if k in ["BMI", "体脂率", "去脂体重", "体重", "身高"]]
+        posture_metrics = [k for k in extracted_metrics.keys() if k in posture_keywords.keys()]
+        
+        if composition_metrics:
+            data_categories.append("体成分数据")
+        if posture_metrics:
+            data_categories.append("体态数据")
+        if "性别" in extracted_metrics:
+            data_categories.append("基本信息")
+        
         result["body_data_analysis"]["extracted_metrics"] = extracted_metrics
-        result["body_data_analysis"]["analysis_summary"] = f"成功解析出{len(extracted_metrics)}项身体指标：{list(extracted_metrics.keys())}"
+        result["body_data_analysis"]["data_categories"] = data_categories
+        result["body_data_analysis"]["analysis_summary"] = (
+            f"成功解析出{len(extracted_metrics)}项身体指标：{list(extracted_metrics.keys())}。"
+            f"数据类别：{data_categories}"
+        )
         
         return json.dumps(result, ensure_ascii=False, indent=2)
     
@@ -255,14 +293,30 @@ class MedicalAnalysis:
     
     @staticmethod
     def _optimize_body_query(query_text):
-        """优化查询文本，提取关键身体指标词汇"""
-        # 身体指标关键词映射
+        """优化查询文本，提取关键身体指标词汇（增强版，支持体态指标）"""
+        # 🔥 增强的身体指标关键词映射，包含体成分和体态指标
         body_keywords = {
+            # 体成分相关指标
             "BMI": ["bmi", "体重指数", "体质指数"],
             "去脂体重指数": ["去脂体重指数", "ffmi", "瘦体重指数", "肌肉指数"],
             "体重": ["体重", "重量", "kg"],
             "身高": ["身高", "cm", "厘米"],
-            "体脂率": ["体脂率"],
+            "体脂率": ["体脂率", "体脂"],
+            
+            # 体态相关指标
+            "高低肩": ["高低肩", "肩膀高低", "肩高低", "肩不平"],
+            "头前引": ["头前引", "头向前", "头部前倾", "颈前伸"],
+            "头侧歪": ["头侧歪", "头歪", "头侧倾", "头偏"],
+            "骨盆前移": ["骨盆前移"],
+            "骨盆旋移": ["骨盆旋移"],
+            "圆肩": ["圆肩", "肩内扣", "肩膀内扣"],
+            "驼背": ["驼背", "弓背", "背部弯曲"],
+            "左圆肩": ["左圆肩", "左肩内扣"],
+            "右圆肩": ["右圆肩", "右肩内扣"],
+            "腿型": ["腿型", "腿形", "x型腿", "o型腿", "左腿", "右腿"],
+            "体态": ["体态", "姿势", "体姿", "身体姿态"],
+            
+            # 基本信息
             "男性": ["男性", "男", "male"],
             "女性": ["女性", "女", "female"]
         }
@@ -285,6 +339,10 @@ class MedicalAnalysis:
                 optimized += " " + " ".join(numbers)
         else:
             optimized = query_text
+        
+        print(f"原始查询: {query_text}")
+        print(f"提取的关键词: {extracted_terms}")
+        print(f"优化后查询: {optimized}")
         
         return optimized
 
@@ -833,7 +891,7 @@ class HealthAssessment:
         """检查决策规则是否适用于用户数据，支持体成分和体态指标"""
         try:
             condition = rule.get("condition", "")
-            if not condition:
+            if not condition: 
                 return False, {}
             
             # 获取用户指标
