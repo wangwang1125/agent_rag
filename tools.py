@@ -30,6 +30,7 @@ class MedicalAnalysis:
             "posture_metrics": {},
             "posture_conclusion": {},
             "girth_info": {},
+            "shoulder_info": {},
             "data_categories": [],
         }
         try:
@@ -48,6 +49,7 @@ class MedicalAnalysis:
             posture_metrics = {}
             girth_info = {}
             posture_conclusion = {}
+            shoulder_info = {}
             
             # 解析用户基本信息
             if "user_info" in data:
@@ -181,14 +183,39 @@ class MedicalAnalysis:
             # 解析围度信息
             if "girth_info" in data:
                 for key, value in data["girth_info"].items():
-                    if value:
-                        girth_info[f"围度_{key}"] = value
+                    if key == "waist":
+                        girth_info["腰围"] = value
+                    elif key == "hip":
+                        girth_info["臀围"] = value
+                    elif key == "left_upper_arm":
+                        girth_info["左侧上臂围"] = value
+                    elif key == "right_upper_arm":
+                        girth_info["右侧上臂围"] = value
+                    elif key == "left_calf":
+                        girth_info["左侧小腿围"] = value
+                    elif key == "right_calf":
+                        girth_info["右侧小腿围"] = value
+                    elif key == "neck":
+                        girth_info["颈围"] = value
+            # 解析肩部信息
+            if "shoulder_info" in data:
+                for key, value in data["shoulder_info"].items():
+                    if key == "left_abduction":
+                        shoulder_info["左侧肩部外展上举"] = value
+                    elif key == "right_abduction":
+                        shoulder_info["右侧肩部外展上举"] = value
+                    elif key == "left_adduction":
+                        shoulder_info["左侧肩部前伸上举"] = value
+                    elif key == "right_adduction":
+                        shoulder_info["右侧肩部前伸上举"] = value
+                
             
             result["user_info"] = user_info
             result["body_composition"] = body_composition
             result["posture_metrics"] = posture_metrics
             result["posture_conclusion"] = posture_conclusion
             result["girth_info"] = girth_info
+            result["shoulder_info"] = shoulder_info
             
             # 数据分类
             data_categories = []

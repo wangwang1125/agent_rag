@@ -582,7 +582,7 @@ ChatAssistant = {
 
 # 体成分+体围异常分析助手
 BodyCompositionAnalysisAssistant = {
-    "model": "qwen-turbo-latest",
+    "model": "qwen-max-latest",
     "name": '体成分体围异常分析机器人',
     "description": '专门负责体成分和体围异常分析的助手，严格基于决策树规则进行异常判断',
     "instructions": f"""你是一个严格按照决策树规则的体成分和体围异常分析专家，专门负责体成分和体围相关异常的判断。
@@ -613,7 +613,7 @@ BodyCompositionAnalysisAssistant = {
       {{
         "abnormality_name": "异常名称",
         "priority": 优先级数字,
-        "condition_verification": "判断过程",
+        "condition_verification": "用户数据带入决策树对比过程",
         "meets_decision_tree": true | false,
       }}
     ],
@@ -621,7 +621,7 @@ BodyCompositionAnalysisAssistant = {
       {{
         "abnormality_name": "异常名称", 
         "priority": 优先级数字,
-        "condition_verification": "判断过程"
+        "condition_verification": "用户数据带入决策树对比过程"
         "meets_decision_tree": true | false,
       }}
     ]
@@ -633,6 +633,7 @@ BodyCompositionAnalysisAssistant = {
 1. **优先输出符合决策树的异常**：identified_abnormalities部分放在前面且详细描述
 2. **按优先级排序**：所有符合的异常必须按优先级从高到低排序（数字越小优先级越高）
 3. **确保完整性**：确保输出所有符合的异常，不要遗漏
+4. **条件验证**：condition_verification必须详细描述用户数据带入决策树对比过程,尽量隐藏决策树的具体数值,只描述用户数据与决策树条件对比过程
 
 【严格禁止 - 违反将导致分析失效】
 - 在分析中输出决策树中不存在的异常名称
@@ -644,7 +645,7 @@ BodyCompositionAnalysisAssistant = {
 
 # 体态异常分析助手（有骨盆）
 PostureAnalysisAssistant = {
-    "model": "qwen-turbo-latest", 
+    "model": "qwen-max-latest", 
     "name": '体态异常分析机器人（有骨盆）',
     "description": '专门负责有骨盆体态异常分析的助手，严格基于决策树规则进行异常判断',
     "instructions": f"""你是一个严格按照决策树规则的体态异常分析专家，专门负责有骨盆相关的体态异常判断。
@@ -693,7 +694,7 @@ PostureAnalysisAssistant = {
         "original_name": "决策树中的原始异常名称", 
         "specific_name": "根据实际情况具体化的异常名称",
         "priority": 优先级数字,
-        "condition_verification": "判断过程",
+        "condition_verification": "用户数据带入决策树对比过程",
         "meets_decision_tree": true | false,
       }}
     ]
@@ -706,6 +707,7 @@ PostureAnalysisAssistant = {
 2. **按优先级排序**：所有符合的异常必须按优先级从高到低排序（数字越小优先级越高）
 3. **确保完整性**：确保输出所有符合的异常，不要遗漏
 4. **名称具体化**：original_name保持决策树原始名称，specific_name根据实际数据具体化
+5. **条件验证**：condition_verification必须详细描述用户数据带入决策树对比过程,尽量隐藏决策树的具体数值,只描述用户数据与决策树条件对比过程
 
 【严格禁止 - 违反将导致分析失效】
 - 在分析中输出决策树中不存在的异常名称
@@ -717,7 +719,7 @@ PostureAnalysisAssistant = {
 
 # 体态异常分析助手（无骨盆）
 PostureAnalysisNoPelvisAssistant = {
-    "model": "qwen-turbo-latest", 
+    "model": "qwen-max-latest", 
     "name": '体态异常分析机器人（无骨盆）',
     "description": '专门负责无骨盆体态异常分析的助手，严格基于决策树规则进行异常判断',
     "instructions": f"""你是一个严格按照决策树规则的体态异常分析专家，专门负责无骨盆相关的体态异常判断。
@@ -770,7 +772,7 @@ PostureAnalysisNoPelvisAssistant = {
         "original_name": "决策树中的原始异常名称", 
         "specific_name": "根据实际情况具体化的异常名称",
         "priority": 优先级数字,
-        "condition_verification": "判断过程",
+        "condition_verification": "用户数据带入决策树对比过程",
         "meets_decision_tree": true | false,
       }}
     ]
@@ -783,6 +785,7 @@ PostureAnalysisNoPelvisAssistant = {
 2. **按优先级排序**：所有符合的异常必须按优先级从高到低排序（数字越小优先级越高）
 3. **确保完整性**：确保输出所有符合的异常，不要遗漏
 4. **名称具体化**：original_name保持决策树原始名称，specific_name根据实际数据具体化
+5. **条件验证**：condition_verification必须详细描述用户数据带入决策树对比过程,尽量隐藏决策树的具体数值,只描述用户数据与决策树条件对比过程
 
 【严格禁止 - 违反将导致分析失效】
 - 在分析中输出决策树中不存在的异常名称
@@ -794,16 +797,16 @@ PostureAnalysisNoPelvisAssistant = {
 
 # 在Multi Agent场景下，定义一个用于总结的Agent，该Agent会根据用户的问题与之前Agent输出的参考信息，全面、完整地回答用户问题
 SummaryAssistant = {
-    "model": "qwen-turbo-latest",
+    "model": "qwen-max-latest",
     "name": '身体异常总结机器人',
     "description": '一个专业的身体异常分析助手，负责整合三项异常分析结果和知识库查询结果，生成完整的异常分析综合报告',
-    "instructions": """你是一个专业的身体异常分析总结专家，负责整合三项异常分析结果和知识库查询结果，提供最终的综合报告。
+    "instructions": """你是一个专业的身体异常分析总结专家，负责整合三项异常分析结果和知识库查询结果，提供最终的JSON格式综合报告。
 
 【核心任务】
 1. 接收三项并发异常分析结果（体成分+体围、有骨盆体态、无骨盆体态异常结论、判断过程）
 2. 接收已查询好的知识库解决方案信息
-3. 整合异常分析结果和知识库查询结果，生成包含完整信息的身体异常分析综合报告
-4. 按照优先级排序所有异常
+3. 整合异常分析结果和知识库查询结果，生成JSON格式的身体异常分析综合报告
+4. 按照优先级排序所有异常（数字越小优先级越高）
 5. 正确处理和显示异常的原始名称和具体化名称
 
 【异常名称处理说明】
@@ -811,57 +814,90 @@ SummaryAssistant = {
 - **specific_name**: 根据实际身体数据具体化的异常名称（如左侧、右侧、具体症状等）
 - 在报告中主要使用specific_name，但在必要时也可标注original_name以便参考
 
-【总结格式要求】
-## 身体异常完整分析报告
+【输出格式要求 - 必须严格按照JSON格式输出】
+必须严格按照以下JSON格式输出，不得添加任何额外文字说明：
 
-### 一、异常结论汇总
-[列出所有检测到的异常，体成分、体围和体态（来自有骨盆和无骨盆分析）分别按优先级排序，优先显示具体化名称]
+```json
+{
+  "report_type": "身体异常完整分析报告",
+  "analysis_summary": {
+    "total_abnormalities_found": 总异常数量,
+    "body_composition_count": 体成分异常数量,
+    "girth_count": 体围异常数量,
+    "posture_count": 体态异常数量,
+    "highest_priority_level": 最高优先级数字
+  },
+     "abnormalities_by_priority": [
+     {
+       "category": "体成分/体围/体态",
+       "abnormality_name": "具体化异常名称",
+       "original_decision_tree_name": "决策树中的原始异常名称（如有）",
+       "priority": 优先级数字,
+       "analysis_process": "判断流程和数据匹配情况",
+       "key_solutions": "从知识库获得的关键解决点",
+       "recommendations": "从知识库获得的建议",
+       "symptoms": "从知识库获得的症状",
+       "health_impact": "从知识库获得的对身体的影响"
+     }
+   ],
+   "category_details": {
+     "body_composition": [
+       {
+         "abnormality_name": "异常名称",
+         "priority": 优先级,
+         "analysis_process": "判断过程",
+         "key_solutions": "解决方案",
+         "recommendations": "建议",
+         "symptoms": "症状",
+         "health_impact": "健康影响"
+       }
+     ],
+     "girth": [
+       {
+         "abnormality_name": "异常名称",
+         "priority": 优先级,
+         "analysis_process": "判断过程",
+         "key_solutions": "解决方案",
+         "recommendations": "建议",
+         "symptoms": "症状",
+         "health_impact": "健康影响"
+       }
+     ],
+     "posture": [
+       {
+         "abnormality_name": "具体化异常名称",
+         "original_decision_tree_name": "决策树原始名称",
+         "priority": 优先级,
+         "analysis_process": "判断过程",
+         "key_solutions": "解决方案",
+         "recommendations": "建议",
+         "symptoms": "症状",
+         "health_impact": "健康影响"
+       }
+     ]
+   },
+  "overall_assessment": "整体身体状况评估与总结"
+}
+```
 
-### 二、体成分异常详细分析（按优先级排序）
-1. **[优先级X] [具体化异常名称]**
-    - **决策树分类**: [原始异常名称（如有）]
-    - **优先级**: [决策树中的优先级]
-    - **判断流程**: [基于专业指标分析（不要显示具体判断阈值），给出判断流程]
-    - **关键解决点**: [从知识库获得的关键解决点]
-    - **建议**: [从知识库获得的建议]
-    - **症状**: [从知识库获得的症状]
-    - **对身体的影响**: [从知识库获得的影响分析] 
-
-### 三、体围异常详细分析（按优先级排序）
-1. **[优先级X] [具体化异常名称]**
-    - **决策树分类**: [原始异常名称（如有）]
-    - **优先级**: [决策树中的优先级]
-    - **判断流程**: [基于专业指标分析（不要显示具体判断阈值），给出判断流程]
-    - **关键解决点**: [从知识库获得的关键解决点]
-    - **建议**: [从知识库获得的建议]
-    - **症状**: [从知识库获得的症状]
-    - **对身体的影响**: [从知识库获得的影响分析] 
-
-### 四、体态异常详细分析（按优先级排序）
-[注：体态异常来自有骨盆体态分析和无骨盆体态分析的综合结果]
-1. **[优先级X] [具体化异常名称]**
-    - **决策树分类**: [原始异常名称（如有）]
-    - **优先级**: [决策树中的优先级]
-    - **侧别详情**: [如左侧/右侧、高肩侧/低肩侧等具体信息]
-    - **影响症状**: [实际存在的相关症状]
-    - **判断结果**: [基于专业指标分析（不要显示具体判断阈值），给出判断流程]
-    - **关键解决点**: [从知识库获得的关键解决点]
-    - **建议**: [从知识库获得的建议]
-    - **症状**: [从知识库获得的症状]
-    - **对身体的影响**: [从知识库获得的影响分析] 
-
-### 五、综合建议与总结
-- 给出一段话的整体身体状况评估与总结
+【重要输出原则】
+1. **严格JSON格式**：输出必须是有效的JSON格式，不得包含任何markdown或其他格式
+2. **优先级排序**：abnormalities_by_priority数组中的异常必须按优先级从高到低排序（数字越小优先级越高）
+3. **完整信息整合**：必须整合所有三项并发分析结果和知识库查询信息
+4. **名称字段处理**：
+   - 体成分/体围异常：使用abnormality_name字段
+   - 体态异常：使用abnormality_name（具体化）和original_decision_tree_name（原始）字段
+5. **分类详情**：category_details中也要按优先级排序
+6. **知识库信息**：所有解决方案、症状、影响等信息都必须基于提供的知识库查询结果
 
 【严格要求】
 - 必须整合所有三项并发分析结果和提供的知识库信息
-- 体成分、体围和体态分别按照优先级排序（数字越小优先级越高）
+- 体成分、体围和体态异常都要按照优先级排序（数字越小优先级越高）
 - 体态异常包含了有骨盆和无骨盆两个分析的综合结果
-- 优先使用具体化的异常名称（specific_name），同时在必要时标注原始分类
-- 对于体态异常，特别关注侧别信息和具体症状
+- 使用abnormality_name作为主要显示名称（已具体化），对于体态异常还要保留original_decision_tree_name
 - 确保每个异常都有完整的信息
 - 基于提供的知识库查询结果来补充解决方案、症状、影响等信息
-- 如果某个类别没有异常，则不显示该类别的分析部分"""
+- 如果某个类别没有异常，则该类别的数组为空"""
 }
 
 # 将工具函数的name映射到函数本体
@@ -994,6 +1030,7 @@ def analyze_abnormalities_concurrently(user_body_data, knowledge_base=None):
         user_data_posture["user_info"] = user_body_data["user_info"]
         user_data_posture["posture_metrics"] = user_body_data["posture_metrics"]
         user_data_posture["posture_conclusion"] = user_body_data["posture_conclusion"]
+        user_data_posture["shoulder_info"] = user_body_data["shoulder_info"]
         
         future_posture_with_pelvis = executor.submit(analyze_posture_with_pelvis, user_data_posture)
         future_posture_no_pelvis = executor.submit(analyze_posture_no_pelvis, user_data_posture)
@@ -1090,8 +1127,8 @@ def merge_abnormality_results(analysis_results):
                         for ab in abnormalities["body_composition"]:
                             if ab.get("meets_decision_tree", False) == True:
                                 merged_result["identified_abnormalities"]["body_composition"].append(ab)
-                                # 兼容新旧格式的异常名称
-                                abnormality_name = ab.get("specific_name") or ab.get("abnormality_name", "")
+                                # 获取异常名称用于知识库查询
+                                abnormality_name = ab.get("abnormality_name", "")
                                 if abnormality_name:
                                     abnormalities_for_query.append(abnormality_name)
                     
@@ -1100,8 +1137,8 @@ def merge_abnormality_results(analysis_results):
                         for ab in abnormalities["girth"]:
                             if ab.get("meets_decision_tree", False) == True:
                                 merged_result["identified_abnormalities"]["girth"].append(ab)
-                                # 兼容新旧格式的异常名称
-                                abnormality_name = ab.get("specific_name") or ab.get("abnormality_name", "")
+                                # 获取异常名称用于知识库查询
+                                abnormality_name = ab.get("abnormality_name", "")
                                 if abnormality_name:
                                     abnormalities_for_query.append(abnormality_name)
                     
@@ -1111,7 +1148,7 @@ def merge_abnormality_results(analysis_results):
                             if ab.get("meets_decision_tree", False) == True:
                                 merged_result["identified_abnormalities"]["posture"].append(ab)
                                 # 兼容新旧格式的异常名称，优先使用具体化名称
-                                abnormality_name = ab.get("specific_name") or ab.get("abnormality_name", "")
+                                abnormality_name = ab.get("abnormality_name", "")
                                 if abnormality_name:
                                     abnormalities_for_query.append(abnormality_name)
                 
@@ -1598,47 +1635,261 @@ def test_body_analysis():
     """测试身体异常分析的三项多智能体流程 - 体成分+体围、有骨盆体态、无骨盆体态：优先输出符合决策树的异常"""
     # 示例用户数据
     user_body_data = {
-        "mass_info":{
-            "WT":{"l":25.8, "m":30.4, "h":35, "v":48.7, "status":3},
-            "FFM":{"l":28.7, "m":31.9, "h":35.1, "v":4.9, "status":1},
-            "TBW":{"l":37.285292814, "m":41.412983381000004, "h":45.540673948000006, "v":34.110146224000005, "status":1},
-            "BMI":{"l":18.5, "m":22, "h":24, "v":23.4, "status":2},
-            "PBF":{"l":10, "m":15, "h":20, "v":33.7, "status":3},
-            "BMR":{"l":1432.4, "m":1591.6, "h":1750.8, "v":1413.1, "status":1},
-            "WHR":{"l":0.8, "m":0.85, "h":0.9, "v":0.88, "status":2},
-            "SM":{"l":28.440241599000004, "m":31.842184374000002, "h":35.289486386, "v":25.764046616, "status":1},
-            "PROTEIN":{"l":9.979032140000001, "m":11.113013065, "h":12.24699399, "v":9.162565874, "status":1},
-            "ICW":{"l":23.133210870000003, "m":25.718687379000002, "h":28.304163888, "v":21.092045205, "status":1},
-            "ECW":{"l":14.152081944, "m":15.739655239000003, "h":17.327228534000003, "v":13.471693389, "status":1},
-            "VAG":{"l":0.9, "h":10, "m":0, "v":9, "status":2}
+    "scan_id": "25123456789125-812424e2-481b-11f0-a520-08bfb881e2bf",
+    "product_model": "VD-PRO3",
+    "mass_info": {
+        "WT": {
+            "l": 58.6,
+            "m": 65.1,
+            "h": 71.6,
+            "v": 76.5,
+            "status": 3
         },
-        "girth_info":{
-            "left_calf":40.9, "right_calf":41.4, "neck":37.083999999999996,
-            "waist":87.884, "hip":103.37800000000001, "left_upper_arm":28.194, "right_upper_arm":28.448
+        "FFM": {
+            "l": 49.8,
+            "m": 55.3,
+            "h": 60.8,
+            "v": 31.9,
+            "status": 1
         },
-        "eval_info":{
-            "id":20985, "scan_id":"37123456789136-950b07ba-875a-41b7-8850-271bf5b79764",
-            "high_low_shoulder":3.302, "head_slant":0, "head_forward":1.5,
-            "left_leg_xo":179.5, "right_leg_xo":174.3, "pelvis_forward":176.5,
-            "left_knee_check":183.6, "right_knee_check":175.9,
-            "round_shoulder_left":7.7, "round_shoulder_right":19.6, "create_time":None
+        "TBW": {
+            "l": 36.4,
+            "m": 40.4,
+            "h": 44.4,
+            "v": 22.6,
+            "status": 1
         },
-        "eval_conclusion":{
-            "head_slant":{"conclusion_key":"body-product.bsEval.headSlant.normal", "val":0},
-            "high_low_shoulder":{"conclusion_key":"body-product.bsEval.highLowShoudler.left", "val":3.302},
-            "head_forward":{"conclusion_key":"body-product.bsEval.headForward.head", "val":1.5},
-            "round_shoulder_left":{"conclusion_key":"body-product.bsEval.roundShoulder.left", "val":7.7},
-            "round_shoulder_right":{"conclusion_key":"body-product.bsEval.roundShoulder.right", "val":19.6},
-            "is_new_math_tt":1
+        "BMI": {
+            "l": 18.5,
+            "m": 22,
+            "h": 24.9,
+            "v": 25.6,
+            "status": 3
         },
-        "shoulder_info":{
-            "id":2192, "scan_id":"37123456789136-950b07ba-875a-41b7-8850-271bf5b79764",
-            "result":1, "left_abduction":173.2, "right_abduction":181.1,
-            "left_adduction":174.1, "right_adduction":171, "create_time":1724313842
+        "PBF": {
+            "l": 10,
+            "m": 15,
+            "h": 20,
+            "v": 58.3,
+            "status": 3
         },
-        "user_info":{"height":174, "age":30, "sex":1},
-        "isForeign":"0", "unit":"imperial", "lang": "zh-CN"
-    }
+        "BMR": {
+            "l": 1445,
+            "m": 1564.5,
+            "h": 1683.9,
+            "v": 1004.3,
+            "status": 1
+        },
+        "WHR": {
+            "l": 0.8,
+            "m": 0.85,
+            "h": 0.9,
+            "v": 1,
+            "status": 3
+        },
+        "SM": {
+            "l": 27.5,
+            "m": 30.6,
+            "h": 33.7,
+            "v": 18.5,
+            "status": 1
+        },
+        "PROTEIN": {
+            "l": 9.4,
+            "m": 10.4,
+            "h": 11.4,
+            "v": 6.3,
+            "status": 1
+        },
+        "ICW": {
+            "l": 22.5,
+            "m": 25,
+            "h": 27.5,
+            "v": 12.4,
+            "status": 1
+        },
+        "ECW": {
+            "l": 13.9,
+            "m": 15.4,
+            "h": 16.9,
+            "v": 10.2,
+            "status": 1
+        },
+        "VAG": {
+            "l": 0.9,
+            "h": 10,
+            "m": 0,
+            "v": 18,
+            "status": 3
+        }
+    },
+    "girth_info": {
+        "neck": 0,
+        "waist": 96.6,
+        "hip": 101.9,
+        "left_calf": 35.3,
+        "right_calf": 35.1,
+        "left_upper_arm": 32.1,
+        "right_upper_arm": 31.4
+    },
+    "eval_info": {
+        "id": 42984,
+        "scan_id": "25123456789125-812424e2-481b-11f0-a520-08bfb881e2bf",
+        "high_low_shoulder": -0.7,
+        "head_slant": 1.4,
+        "head_forward": -13.6,
+        "left_leg_xo": 182.6,
+        "right_leg_xo": 174.3,
+        "pelvis_forward": 180.5,
+        "left_knee_check": 186.4,
+        "right_knee_check": 181.1,
+        "round_shoulder_left": 18.9,
+        "round_shoulder_right": 10,
+        "body_slope": -0.7,
+        "is_leg_diff_status": 1,
+        "leg_length_diff": -6.4,
+        "pelvic_forward_tilt_status": 1,
+        "pelvic_forward_tilt": -5.3
+    },
+    "eval_conclusion": {
+        "head_forward": {
+            "val": -13.6,
+            "conclusion": "正常",
+            "conclusion_key": "body-product.bsEval.normal",
+            "risk": "--",
+            "state": 2
+        },
+        "head_slant": {
+            "val": 1.4,
+            "conclusion": "可能存在头侧歪(偏左)",
+            "conclusion_key": "body-product.bsEval.headSlant.left",
+            "risk": "头侧歪可能引发单侧颈部不适，单侧偏头痛，以及神经压迫的手臂发麻无力等症状",
+            "state": 1
+        },
+        "round_shoulder_left": {
+            "val": 18.9,
+            "conclusion": "可能存在左圆肩",
+            "conclusion_key": "body-product.bsEval.roundShoulder.left",
+            "risk": "圆肩使胸廓容积变小、膈肌活动受限，影响呼吸、心血管及消化吸收功能，出现胸闷、头晕、气短等症状",
+            "state": 1
+        },
+        "round_shoulder_right": {
+            "val": 10,
+            "conclusion": "正常",
+            "conclusion_key": "body-product.bsEval.normal",
+            "risk": "--",
+            "state": 2
+        },
+        "high_low_shoudler": {
+            "val": -0.7,
+            "conclusion": "可能存在高低肩(右高)",
+            "conclusion_key": "body-product.bsEval.highLowShoudler.right",
+            "risk": "高低肩可引发颈肩部的慢性疼痛，常伴随脊柱侧弯、骨盆位移、长短腿等情况出现",
+            "state": 3
+        },
+        "pelvis_forward": {
+            "val": 180.5,
+            "conclusion": "正常",
+            "risk": "--",
+            "state": 2
+        },
+        "pelvic_forward_tilt": {
+            "val": -5.3,
+            "conclusion": "可能存在骨盆后倾",
+            "conclusion_key": "body-product.bsEval.pelvis.backward",
+            "risk": "骨盆前/后倾可能会导致受力不均衡、身体比例失衡、便秘、脊柱侧弯、诱发腰椎疾病",
+            "state": 3
+        },
+        "left_knee_check": {
+            "val": 186.4,
+            "conclusion": "正常",
+            "conclusion_key": "body-product.bsEval.normal",
+            "risk": "--",
+            "state": 2
+        },
+        "right_knee_check": {
+            "val": 181.1,
+            "conclusion": "正常",
+            "conclusion_key": "body-product.bsEval.normal",
+            "risk": "--",
+            "state": 2
+        },
+        "leg_xo": {
+            "left_val": 182.6,
+            "right_val": 174.3,
+            "conclusion": "正常",
+            "conclusion_key": "body-product.bsEval.normal",
+            "risk": "--",
+            "left_state": 2,
+            "right_state": 2,
+            "leg_type": 0
+        },
+        "leg_length_diff": {
+            "val": -6.4,
+            "conclusion": "存在长短腿风险(右长)",
+            "conclusion_key": "body-product.bsEval.legLength.right",
+            "risk": "长短腿会导致身体姿势不平衡，使得脊柱和骨盆处于不正常的位置。可能会导致脊柱侧弯、骨盆倾斜等问题，进而引发腰痛、颈椎病、坐骨神经痛等疼痛症状",
+            "state": 3
+        },
+        "body_slope": {
+            "val": -0.7,
+            "conclusion": "可能存在身体倾斜(偏右)",
+            "conclusion_key": "body-product.bsEval.bodySlope.right",
+            "risk": "身体倾斜会导致踝关节、膝关节受力增大，引起腰背疼痛，严重的可能出现骨盆倾斜或长短腿",
+            "state": 3
+        },
+        "weight_offset": {
+            "val": {
+                "id": 51332,
+                "scan_id": "25123456789125-812424e2-481b-11f0-a520-08bfb881e2bf",
+                "weighta": 26.4,
+                "weightb": 24.8,
+                "weightc": 13,
+                "weightd": 12,
+                "x": -0.1,
+                "y": -6.9,
+                "create_time": 1749794341
+            }
+        }
+    },
+    "shoulder_info": {
+        "left_abduction":173.2, "right_abduction":181.1,
+        "left_adduction":174.1, "right_adduction":171,
+    },
+    "spine_info": {
+        "id": 28496,
+        "scan_id": "25123456789125-812424e2-481b-11f0-a520-08bfb881e2bf",
+        "back_s1c7": 0.2,
+        "side_sisc7": 3,
+        "create_time": 1749794556,
+        "c7point": "{\"x\":-0.15433,\"y\":1428.86,\"z\":-75.4366}",
+        "s1point": "{\"x\":-2.43302,\"y\":909.836,\"z\":-106.093}",
+        "gravity_point": "{\"x\":-2.39786,\"y\":893.008,\"z\":-75.015}",
+        "left_posterior_superior_iliac_spine": "{\"x\":54.4259,\"y\":936.251,\"z\":-147.556}",
+        "right_posterior_superior_iliac_spine": "{\"x\":-52.7222,\"y\":934.353,\"z\":-149.542}",
+        "back_view_conclusion": 1,
+        "side_view_vonclusion": 0
+    },
+    "neck_info": {},
+    "hip_info": {
+        "id": 1703,
+        "scan_id": "25123456789125-812424e2-481b-11f0-a520-08bfb881e2bf",
+        "hip_type": 0,
+        "hip_girth": 101.9,
+        "create_time": 1749794523
+    },
+    "nutrition_info": {
+        "weight": 76.5
+    },
+    "user_info": {
+        "height": 173,
+        "age": 28,
+        "sex": 1
+    },
+    "region": "0",
+    "language": "zh-CN",
+    "unit": "metric"
+}
     
 
     
