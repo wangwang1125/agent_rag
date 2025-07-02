@@ -129,18 +129,29 @@ class MedicalAnalysis:
                 for key, value in posture_conclusion.items():
                     if key.endswith("结论") and isinstance(value, str):
                         value_lower = value.lower()
-                        
-                        # 高低肩、头侧歪：偏左/偏右/正常
-                        if key in ["高低肩结论", "头侧歪结论"]:
+                        # 高低肩：偏左/偏右/正常
+                        if key in ["高低肩结论"]:
                             if "normal" in value_lower:
                                 posture_conclusion[key] = "正常"
                             elif "left" in value_lower:
-                                posture_conclusion[key] = "偏左"
+                                posture_conclusion[key] = "存在异常，存在左高肩"
                             elif "right" in value_lower:
-                                posture_conclusion[key] = "偏右"
+                                posture_conclusion[key] = "存在异常，存在右高肩"
                             else:
                                 # 保持原值，可能包含其他有用信息
                                 posture_conclusion[key] = value
+                        # 头侧歪：偏左/偏右/正常
+                        if key in ["头侧歪结论"]:
+                            if "normal" in value_lower:
+                                posture_conclusion[key] = "正常"
+                            elif "left" in value_lower:
+                                posture_conclusion[key] = "存在异常，头侧歪朝向为左"
+                            elif "right" in value_lower:
+                                posture_conclusion[key] = "存在异常，头侧歪朝向为右"
+                            else:
+                                # 保持原值，可能包含其他有用信息
+                                posture_conclusion[key] = value
+                        
                         elif key in ["左圆肩结论", "右圆肩结论"]:
                             if "normal" in value_lower:
                                 posture_conclusion[key] = "正常"
@@ -154,9 +165,9 @@ class MedicalAnalysis:
                         # 头前引：有异常/无异常
                         elif key in ["头前引结论"]:
                             if "normal" in value_lower:
-                                posture_conclusion[key] = "无异常"
+                                posture_conclusion[key] = "无异常，不存在头前引"
                             elif "headforward.head" in value_lower or "head" in value_lower:
-                                posture_conclusion[key] = "存在异常"
+                                posture_conclusion[key] = "存在异常，存在头前引"
                             else:
                                 posture_conclusion[key] = value
                         # 其他体态结论的通用处理

@@ -613,7 +613,7 @@ BodyCompositionAnalysisAssistant = {
       {{
         "abnormality_name": "异常名称",
         "priority": 优先级数字,
-        "condition_verification": "判断过程"
+        "condition_verification": "判断过程",
         "meets_decision_tree": true | false,
       }}
     ],
@@ -663,6 +663,23 @@ PostureAnalysisAssistant = {
 4. **严格验证原则**：如果任何一个必要条件不满足，绝对不能输出该异常，即使其他条件满足
 5. **确保完整性**：确保对所有异常都进行了判断，不要遗漏
 
+【异常名称具体化要求】
+1. **头侧歪侧方向具体化**：
+   - 如果涉及"头侧歪侧"，根据数据判断是左侧还是右侧，替换为"左侧"或"右侧"
+   - 例如："头侧歪侧斜角肌紧张" → "左侧斜角肌紧张"（如果头侧歪向左侧）
+
+2. **多重条件具体化**：
+   - 如果异常名称包含"头侧歪/头前引"等多重条件，只保留实际存在的症状
+   - 例如："头侧歪/头前引是由xxx诱发" → "头侧歪是由xxx诱发"（如果只存在头侧歪）
+   - 如果两者都存在："头侧歪和头前引是由xxx诱发"
+
+3. **高肩侧/低肩侧具体化**：
+   - 根据高低肩数据，将"高肩侧"替换为"左肩"或"右肩"
+   - 将"低肩侧"替换为"左肩"或"右肩"
+
+4. **其他侧别具体化**：
+   - 圆肩侧、腿型异常侧等都要根据实际数据具体化
+
 【输出格式要求 - 优先输出符合条件的异常】
 必须严格按照以下JSON格式输出，不得添加任何额外文字说明：
 
@@ -673,9 +690,10 @@ PostureAnalysisAssistant = {
   "identified_abnormalities": {{
     "posture": [
       {{
-        "abnormality_name": "异常名称", 
+        "original_name": "决策树中的原始异常名称", 
+        "specific_name": "根据实际情况具体化的异常名称",
         "priority": 优先级数字,
-        "condition_verification": "判断过程"
+        "condition_verification": "判断过程",
         "meets_decision_tree": true | false,
       }}
     ]
@@ -687,6 +705,7 @@ PostureAnalysisAssistant = {
 1. **优先输出符合决策树的异常**：identified_abnormalities部分放在前面且详细描述
 2. **按优先级排序**：所有符合的异常必须按优先级从高到低排序（数字越小优先级越高）
 3. **确保完整性**：确保输出所有符合的异常，不要遗漏
+4. **名称具体化**：original_name保持决策树原始名称，specific_name根据实际数据具体化
 
 【严格禁止 - 违反将导致分析失效】
 - 在分析中输出决策树中不存在的异常名称
@@ -701,7 +720,7 @@ PostureAnalysisNoPelvisAssistant = {
     "model": "qwen-turbo-latest", 
     "name": '体态异常分析机器人（无骨盆）',
     "description": '专门负责无骨盆体态异常分析的助手，严格基于决策树规则进行异常判断',
-    "instructions": f"""你是一个严格按照决策树规则的体态异常分析专家。
+    "instructions": f"""你是一个严格按照决策树规则的体态异常分析专家，专门负责无骨盆相关的体态异常判断。
 
 【决策树规则】
 {posture_decision_tree_no_pelvis}
@@ -713,9 +732,30 @@ PostureAnalysisNoPelvisAssistant = {
 3. **逻辑关系严格执行**：
    - "且"关系：所有条件必须同时满足，任何一个条件不满足则整个异常判断为假
    - "或"关系：至少一个条件满足即可
-   - 条件组合：严格按照括号和逻辑连接词执行
+   - 条件组合：严格按括号和逻辑连接词执行
 4. **严格验证原则**：如果任何一个必要条件不满足，绝对不能输出该异常，即使其他条件满足
 5. **确保完整性**：确保对所有异常都进行了判断，不要遗漏
+
+【异常名称具体化要求】
+1. **头侧歪侧方向具体化**：
+   - 如果涉及"头侧歪侧"，根据数据判断是左侧还是右侧，替换为"左侧"或"右侧"
+   - 例如："头侧歪侧斜角肌紧张" → "左侧斜角肌紧张"（如果头侧歪向左侧）
+
+2. **多重条件具体化**：
+   - 如果异常名称包含"头侧歪/头前引"等多重条件，只保留实际存在的症状
+   - 例如："头侧歪/头前引是由xxx诱发" → "头侧歪是由xxx诱发"（如果只存在头侧歪）
+   - 如果两者都存在："头侧歪和头前引是由xxx诱发"
+
+3. **高肩侧/低肩侧具体化**：
+   - 根据高低肩数据，将"高肩侧"替换为"左肩"或"右肩"
+   - 将"低肩侧"替换为"左肩"或"右肩"
+
+4. **对侧关系具体化**：
+   - "头侧歪的对侧" → 如果头侧歪向左，则对侧为"右侧"
+   - "高肩一侧/低肩一侧" → 根据实际高低肩情况具体化
+
+5. **其他侧别具体化**：
+   - 圆肩侧、腿型异常侧、K型腿/D型腿的具体侧别等
 
 【输出格式要求 - 优先输出符合条件的异常】
 必须严格按照以下JSON格式输出，不得添加任何额外文字说明：
@@ -727,9 +767,10 @@ PostureAnalysisNoPelvisAssistant = {
   "identified_abnormalities": {{
     "posture": [
       {{
-        "abnormality_name": "异常名称", 
+        "original_name": "决策树中的原始异常名称", 
+        "specific_name": "根据实际情况具体化的异常名称",
         "priority": 优先级数字,
-        "condition_verification": "判断过程"
+        "condition_verification": "判断过程",
         "meets_decision_tree": true | false,
       }}
     ]
@@ -741,6 +782,7 @@ PostureAnalysisNoPelvisAssistant = {
 1. **优先输出符合决策树的异常**：identified_abnormalities部分放在前面且详细描述
 2. **按优先级排序**：所有符合的异常必须按优先级从高到低排序（数字越小优先级越高）
 3. **确保完整性**：确保输出所有符合的异常，不要遗漏
+4. **名称具体化**：original_name保持决策树原始名称，specific_name根据实际数据具体化
 
 【严格禁止 - 违反将导致分析失效】
 - 在分析中输出决策树中不存在的异常名称
@@ -762,15 +804,22 @@ SummaryAssistant = {
 2. 接收已查询好的知识库解决方案信息
 3. 整合异常分析结果和知识库查询结果，生成包含完整信息的身体异常分析综合报告
 4. 按照优先级排序所有异常
+5. 正确处理和显示异常的原始名称和具体化名称
+
+【异常名称处理说明】
+- **original_name**: 决策树中的原始异常名称（保持术语标准性）
+- **specific_name**: 根据实际身体数据具体化的异常名称（如左侧、右侧、具体症状等）
+- 在报告中主要使用specific_name，但在必要时也可标注original_name以便参考
 
 【总结格式要求】
 ## 身体异常完整分析报告
 
 ### 一、异常结论汇总
-[列出所有检测到的异常，体成分、体围和体态（来自有骨盆和无骨盆分析）分别按优先级排序]
+[列出所有检测到的异常，体成分、体围和体态（来自有骨盆和无骨盆分析）分别按优先级排序，优先显示具体化名称]
 
 ### 二、体成分异常详细分析（按优先级排序）
-1. **[优先级X] 异常名称**
+1. **[优先级X] [具体化异常名称]**
+    - **决策树分类**: [原始异常名称（如有）]
     - **优先级**: [决策树中的优先级]
     - **判断流程**: [基于专业指标分析（不要显示具体判断阈值），给出判断流程]
     - **关键解决点**: [从知识库获得的关键解决点]
@@ -779,7 +828,8 @@ SummaryAssistant = {
     - **对身体的影响**: [从知识库获得的影响分析] 
 
 ### 三、体围异常详细分析（按优先级排序）
-1. **[优先级X] 异常名称**
+1. **[优先级X] [具体化异常名称]**
+    - **决策树分类**: [原始异常名称（如有）]
     - **优先级**: [决策树中的优先级]
     - **判断流程**: [基于专业指标分析（不要显示具体判断阈值），给出判断流程]
     - **关键解决点**: [从知识库获得的关键解决点]
@@ -789,8 +839,11 @@ SummaryAssistant = {
 
 ### 四、体态异常详细分析（按优先级排序）
 [注：体态异常来自有骨盆体态分析和无骨盆体态分析的综合结果]
-1. **[优先级X] 异常名称**
+1. **[优先级X] [具体化异常名称]**
+    - **决策树分类**: [原始异常名称（如有）]
     - **优先级**: [决策树中的优先级]
+    - **侧别详情**: [如左侧/右侧、高肩侧/低肩侧等具体信息]
+    - **影响症状**: [实际存在的相关症状]
     - **判断结果**: [基于专业指标分析（不要显示具体判断阈值），给出判断流程]
     - **关键解决点**: [从知识库获得的关键解决点]
     - **建议**: [从知识库获得的建议]
@@ -804,6 +857,8 @@ SummaryAssistant = {
 - 必须整合所有三项并发分析结果和提供的知识库信息
 - 体成分、体围和体态分别按照优先级排序（数字越小优先级越高）
 - 体态异常包含了有骨盆和无骨盆两个分析的综合结果
+- 优先使用具体化的异常名称（specific_name），同时在必要时标注原始分类
+- 对于体态异常，特别关注侧别信息和具体症状
 - 确保每个异常都有完整的信息
 - 基于提供的知识库查询结果来补充解决方案、症状、影响等信息
 - 如果某个类别没有异常，则不显示该类别的分析部分"""
@@ -939,7 +994,6 @@ def analyze_abnormalities_concurrently(user_body_data, knowledge_base=None):
         user_data_posture["user_info"] = user_body_data["user_info"]
         user_data_posture["posture_metrics"] = user_body_data["posture_metrics"]
         user_data_posture["posture_conclusion"] = user_body_data["posture_conclusion"]
-        print(f"体态分析数据: {user_data_posture}")
         
         future_posture_with_pelvis = executor.submit(analyze_posture_with_pelvis, user_data_posture)
         future_posture_no_pelvis = executor.submit(analyze_posture_no_pelvis, user_data_posture)
@@ -1036,21 +1090,30 @@ def merge_abnormality_results(analysis_results):
                         for ab in abnormalities["body_composition"]:
                             if ab.get("meets_decision_tree", False) == True:
                                 merged_result["identified_abnormalities"]["body_composition"].append(ab)
-                                abnormalities_for_query.append(ab.get("abnormality_name", ""))
+                                # 兼容新旧格式的异常名称
+                                abnormality_name = ab.get("specific_name") or ab.get("abnormality_name", "")
+                                if abnormality_name:
+                                    abnormalities_for_query.append(abnormality_name)
                     
                     # 合并体围异常 - 只保留meets_decision_tree为true的
                     if "girth" in abnormalities:
                         for ab in abnormalities["girth"]:
                             if ab.get("meets_decision_tree", False) == True:
                                 merged_result["identified_abnormalities"]["girth"].append(ab)
-                                abnormalities_for_query.append(ab.get("abnormality_name", ""))
+                                # 兼容新旧格式的异常名称
+                                abnormality_name = ab.get("specific_name") or ab.get("abnormality_name", "")
+                                if abnormality_name:
+                                    abnormalities_for_query.append(abnormality_name)
                     
                     # 合并体态异常（包括有骨盆和无骨盆） - 只保留meets_decision_tree为true的
                     if "posture" in abnormalities:
                         for ab in abnormalities["posture"]:
                             if ab.get("meets_decision_tree", False) == True:
                                 merged_result["identified_abnormalities"]["posture"].append(ab)
-                                abnormalities_for_query.append(ab.get("abnormality_name", ""))
+                                # 兼容新旧格式的异常名称，优先使用具体化名称
+                                abnormality_name = ab.get("specific_name") or ab.get("abnormality_name", "")
+                                if abnormality_name:
+                                    abnormalities_for_query.append(abnormality_name)
                 
                 # 合并统计信息
                 if "systematic_check_summary" in analysis_data:
