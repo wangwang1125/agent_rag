@@ -25,14 +25,12 @@ class MedicalAnalysis:
     def initialize_structured_data(structured_data):
         """直接初始化结构化身体数据，跳过agent分析流程，仿照UserDataAnalysisAssistant的输出格式"""
         result = {
-            "body_data_analysis": {
-                "user_info": {},
-                "body_composition": {},
-                "posture_metrics": {},
-                "posture_conclusion": {},
-                "girth_info": {},
-                "data_categories": [],
-            }
+            "user_info": {},
+            "body_composition": {},
+            "posture_metrics": {},
+            "posture_conclusion": {},
+            "girth_info": {},
+            "data_categories": [],
         }
         try:
             # 解析结构化数据
@@ -175,11 +173,11 @@ class MedicalAnalysis:
                     if value:
                         girth_info[f"围度_{key}"] = value
             
-            result["body_data_analysis"]["user_info"] = user_info
-            result["body_data_analysis"]["body_composition"] = body_composition
-            result["body_data_analysis"]["posture_metrics"] = posture_metrics
-            result["body_data_analysis"]["posture_conclusion"] = posture_conclusion
-            result["body_data_analysis"]["girth_info"] = girth_info
+            result["user_info"] = user_info
+            result["body_composition"] = body_composition
+            result["posture_metrics"] = posture_metrics
+            result["posture_conclusion"] = posture_conclusion
+            result["girth_info"] = girth_info
             
             # 数据分类
             data_categories = []
@@ -194,12 +192,12 @@ class MedicalAnalysis:
             if any(k in user_info for k in ["身高", "年龄", "性别"]):
                 data_categories.append("基本信息")
             
-            result["body_data_analysis"]["data_categories"] = data_categories
+            result["data_categories"] = data_categories
             
             
         except Exception as e:
-            result["body_data_analysis"]["error"] = f"初始化结构化数据时出错：{str(e)}"
-            result["body_data_analysis"]["analysis_summary"] = "数据初始化失败"
+            result["error"] = f"初始化结构化数据时出错：{str(e)}"
+            result["analysis_summary"] = "数据初始化失败"
         
         return json.dumps(result, ensure_ascii=False, indent=2)
     
