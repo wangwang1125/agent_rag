@@ -198,8 +198,8 @@ tichengfen_tiwei_decision_tree = """
 }
 """
 
-# 体态
-tiwei_decision_tree = """
+# 体态异常决策树（有骨盆）
+posture_decision_tree = """
     "体态": {
         "可能骨盆旋移": {
             "优先级": 3,
@@ -237,76 +237,10 @@ tiwei_decision_tree = """
                 "骨盆前移角度≤179或骨盆前移距离≥2cm且双侧膝关节角度差异相差≥5°。同时较大腿型角度一侧的膝关节角度比较小膝关节一侧腿型角度多3且头侧歪朝向为较小膝关节角度一侧"
             ]
         },
-        "高低肩是由头侧歪诱发的": {
-            "优先级": 5,
-            "异常判断流程": [
-                ""
-            ]
-        },
-        "（头歪侧/高肩一侧）斜方肌和肩胛提肌紧张": {
-            "优先级": 6,
-            "异常判断流程": [
-                "存在头歪向一侧（头歪侧）且存在高低肩（高肩侧），并且高肩侧与头歪侧相反"
-            ]
-        },
-        "高肩侧 上斜方肌紧张": {
-            "优先级": 6,
-            "异常判断流程": [
-                "存在头前引且存在高低肩（高肩侧）"
-            ]
-        },
-        "头侧歪侧肩胛提肌、头侧歪侧斜角肌、高肩侧上斜方肌紧张、头侧歪的对侧 胸锁乳突肌紧张": {
-            "优先级": 6,
-            "异常判断流程": [
-                "存在头前引、存在头歪向一侧（头歪侧）且存在高低肩（高肩侧），并且高肩侧与头歪侧相反（对侧关系）"
-            ]
-        },
-        "头侧歪侧斜角肌紧张、对侧胸锁乳突肌紧张": {
-            "优先级": 6,
-            "异常判断流程": [
-                "头歪向一侧（头歪侧）、高低肩（高肩侧）、圆肩（圆肩侧）及头前引这四项中至少两项同时存在，且这些症状出现在身体同侧"
-            ]
-        },
-        "且前锯肌紧张、三角肌前束、冈上肌、下斜方肌无力": {
-            "优先级": 5,
-            "异常判断流程": [
-                "存在头侧歪或高低肩且（头歪侧/高肩一侧)斜方肌和肩胛提肌紧张且头歪侧或高肩侧肩部外展上举小于175°"
-            ]
-        },
-        "且三角肌中束和后束无力": {
-            "优先级": 5,
-            "异常判断流程": [
-                "存在头侧歪或高低肩且（头歪侧/高肩一侧)斜方肌和肩胛提肌紧张且头歪侧或高肩一侧前伸上举小于175"
-            ]
-        },
-        "且 前锯肌紧张、三角肌前/中/后束、冈上肌、下斜方肌无力": {
-            "优先级": 5,
-            "异常判断流程": [
-                "前锯肌紧张、三角肌前束、网上肌、下斜方肌无力且三角肌中/后束无力"
-            ]
-        },
-        "可能存在单侧足弓塌陷": {
-            "优先级": 2,
-            "异常判断流程": [
-                "存在高低肩，并且存在头侧歪、头前引或圆肩中至少一项，并且头侧歪朝向高肩侧，并且低肩一侧腿型角度≥180，百高肩一侧腿型角度≤179"
-            ]
-        },
-        "头侧歪和（或）头前引和（或）高低肩是一个问题诱发": {
-            "优先级": 5,
-            "异常判断流程": [
-                "低肩一侧腿型角度≥180，百高肩一侧腿型角度≤179"
-            ]
-        },
         "头侧歪/高低肩/头前引 均由骨盆旋移诱发": {
             "优先级": 2,
             "异常判断流程": [
                 "存在高低肩，且存在头歪、头前引或圆肩中至少一项，且（存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或存在头前引且存在高低肩，或存在头前引、存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或头歪向一侧、高低肩、圆肩及头前引这四项中至少两项同时存在且这些症状出现在身体同侧），且存在骨盆前移的可能性"
-            ]
-        },
-        "单圆肩侧胸小肌、胸锁乳突肌、斜角肌、前锯肌紧张": {
-            "优先级": 5,
-            "异常判断流程": [
-                "存在高低肩，且存在头歪、头前引或圆肩中至少一项，且（存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或存在头前引且存在高低肩，或存在头前引、存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或头歪向一侧、高低肩、圆肩及头前引这四项中至少两项同时存在且这些症状出现在身体同侧），且在圆肩侧肩部前屈上举角度 < 178° 和/或 外展上举角度 < 178°"
             ]
         },
         "头前引可能是由骨盆前倾或前移导致": {
@@ -315,50 +249,13 @@ tiwei_decision_tree = """
                 "存在高低肩，且存在头歪、头前引或圆肩中至少一项，且（存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或存在头前引且存在高低肩，或存在头前引、存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或头歪向一侧、高低肩、圆肩及头前引这四项中至少两项同时存在且这些症状出现在身体同侧），且存在骨盆前移的可能性，并且头前引程度超标"
             ]
         },
-        "圆肩侧胸小肌、胸大肌紧张": {
-            "优先级": 5,
-            "异常判断流程": [
-                "存在单侧圆肩，且圆肩侧 肩部前伸上举>=175°"
-            ]
-        },
-        "圆肩侧胸小肌、胸大肌紧张三角肌中束、后束力量不足，大圆肌紧张": {
-            "优先级": 5,
-            "异常判断流程": [
-                "存在单侧圆肩，且圆肩侧 肩部前伸上举<175°"
-            ]
-        },
-        "头侧歪侧 胸锁乳突肌、斜角肌紧张": {
-            "优先级": 5,
-            "异常判断流程": [
-                "存在单侧圆肩，且圆肩侧 肩部前伸上举>=175°，且头前引超标或头侧歪超标，且头侧歪和圆肩为同侧",
-                "存在单侧圆肩，且圆肩侧 肩部前伸上举<175°，且头前引超标或头侧歪超标，且头侧歪和圆肩为同侧"
-            ]
-        },
-        "头侧歪的 对侧的胸锁乳突肌、同侧斜角肌": {
-            "优先级": 5,
-            "异常判断流程": [
-                "存在单侧圆肩，且圆肩侧 肩部前伸上举>=175°，且头前引超标或头侧歪超标，且头侧歪和圆肩为异侧",
-                "存在单侧圆肩，且圆肩侧 肩部前伸上举<175°，且头前引超标或头侧歪超标，且头侧歪和圆肩为异侧"
-            ]
-        },
-        "上交叉综合征": {
-            "优先级": 4,
-            "异常判断流程": [
-                "存在双侧圆肩，且头前引超标"
-            ]
-        },
         "上下交叉综合征": {
             "优先级": 1,
             "异常判断流程": [
                 "存在双侧圆肩，且头前引超标，且可能骨盆前倾"
             ]
         },
-        "双侧胸小肌、胸大肌、三角肌前束与菱形肌、下斜方、三角肌后束、冈下肌和小圆肌力量不对称": {
-            "优先级": 5,
-            "异常判断流程": [
-                "不存在圆肩，且头前引不超标"
-            ]
-        },
+        
         "梨形臀可能由骨盆前倾诱发": {
             "优先级": 1,
             "异常判断流程": [
@@ -439,6 +336,130 @@ tiwei_decision_tree = """
                 "存在骨盆后倾，且方形臀"
             ]
         },
+        "您的臀型可能是由X型腿诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在倒三角臀，且没有骨盆前后倾，且存在x型腿"
+            ]
+        }
+    }
+        
+        
+        
+
+"""
+
+# 体态异常决策树（无骨盆）
+posture_decision_tree_no_pelvis = """
+    "体态": {
+        "高低肩是由头侧歪诱发的": {
+            "优先级": 5,
+            "异常判断流程": [
+                ""
+            ]
+        },
+        "（头歪侧/高肩一侧）斜方肌和肩胛提肌紧张": {
+            "优先级": 6,
+            "异常判断流程": [
+                "存在头歪向一侧（头歪侧）且存在高低肩（高肩侧），并且高肩侧与头歪侧相反"
+            ]
+        },
+        "高肩侧 上斜方肌紧张": {
+            "优先级": 6,
+            "异常判断流程": [
+                "存在头前引且存在高低肩（高肩侧）"
+            ]
+        },
+        "头侧歪侧肩胛提肌、头侧歪侧斜角肌、高肩侧上斜方肌紧张、头侧歪的对侧 胸锁乳突肌紧张": {
+            "优先级": 6,
+            "异常判断流程": [
+                "存在头前引、存在头歪向一侧（头歪侧）且存在高低肩（高肩侧），并且高肩侧与头歪侧相反（对侧关系）"
+            ]
+        },
+        "头侧歪侧斜角肌紧张、对侧胸锁乳突肌紧张": {
+            "优先级": 6,
+            "异常判断流程": [
+                "头歪向一侧（头歪侧）、高低肩（高肩侧）、圆肩（圆肩侧）及头前引这四项中至少两项同时存在，且这些症状出现在身体同侧"
+            ]
+        },
+        "且前锯肌紧张、三角肌前束、冈上肌、下斜方肌无力": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在头侧歪或高低肩且（头歪侧/高肩一侧)斜方肌和肩胛提肌紧张且头歪侧或高肩侧肩部外展上举小于175°"
+            ]
+        },
+        "且三角肌中束和后束无力": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在头侧歪或高低肩且（头歪侧/高肩一侧)斜方肌和肩胛提肌紧张且头歪侧或高肩一侧前伸上举小于175"
+            ]
+        },
+        "且 前锯肌紧张、三角肌前/中/后束、冈上肌、下斜方肌无力": {
+            "优先级": 5,
+            "异常判断流程": [
+                "前锯肌紧张、三角肌前束、网上肌、下斜方肌无力且三角肌中/后束无力"
+            ]
+        },
+        "可能存在单侧足弓塌陷": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在高低肩，并且存在头侧歪、头前引或圆肩中至少一项，并且头侧歪朝向高肩侧，并且低肩一侧腿型角度≥180，百高肩一侧腿型角度≤179"
+            ]
+        },
+        "头侧歪和（或）头前引和（或）高低肩是一个问题诱发": {
+            "优先级": 5,
+            "异常判断流程": [
+                "低肩一侧腿型角度≥180，百高肩一侧腿型角度≤179"
+            ]
+        },
+
+        "单圆肩侧胸小肌、胸锁乳突肌、斜角肌、前锯肌紧张": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在高低肩，且存在头歪、头前引或圆肩中至少一项，且（存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或存在头前引且存在高低肩，或存在头前引、存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或头歪向一侧、高低肩、圆肩及头前引这四项中至少两项同时存在且这些症状出现在身体同侧），且在圆肩侧肩部前屈上举角度 < 178° 和/或 外展上举角度 < 178°"
+            ]
+        },
+
+        "圆肩侧胸小肌、胸大肌紧张": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在单侧圆肩，且圆肩侧 肩部前伸上举>=175°"
+            ]
+        },
+        "圆肩侧胸小肌、胸大肌紧张三角肌中束、后束力量不足，大圆肌紧张": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在单侧圆肩，且圆肩侧 肩部前伸上举<175°"
+            ]
+        },
+        "头侧歪侧 胸锁乳突肌、斜角肌紧张": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在单侧圆肩，且圆肩侧 肩部前伸上举>=175°，且头前引超标或头侧歪超标，且头侧歪和圆肩为同侧",
+                "存在单侧圆肩，且圆肩侧 肩部前伸上举<175°，且头前引超标或头侧歪超标，且头侧歪和圆肩为同侧"
+            ]
+        },
+        "头侧歪的 对侧的胸锁乳突肌、同侧斜角肌": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在单侧圆肩，且圆肩侧 肩部前伸上举>=175°，且头前引超标或头侧歪超标，且头侧歪和圆肩为异侧",
+                "存在单侧圆肩，且圆肩侧 肩部前伸上举<175°，且头前引超标或头侧歪超标，且头侧歪和圆肩为异侧"
+            ]
+        },
+        "上交叉综合征": {
+            "优先级": 4,
+            "异常判断流程": [
+                "存在双侧圆肩，且头前引超标"
+            ]
+        },
+
+        "双侧胸小肌、胸大肌、三角肌前束与菱形肌、下斜方、三角肌后束、冈下肌和小圆肌力量不对称": {
+            "优先级": 5,
+            "异常判断流程": [
+                "不存在圆肩，且头前引不超标"
+            ]
+        },
+        
         "高低肩是由长短腿 诱发": {
             "优先级": 1,
             "异常判断流程": [
@@ -547,12 +568,6 @@ tiwei_decision_tree = """
                 "存在腿型呈现D型，且D型腿中腿型角度不正常的腿短或躯干朝腿型角度不正常侧倾斜或正常腿侧足底重量 >短腿侧+2kg"
             ]
         },
-        "您的臀型可能是由X型腿诱发": {
-            "优先级": 1,
-            "异常判断流程": [
-                "存在倒三角臀，且没有骨盆前后倾，且存在x型腿"
-            ]
-        }
     }
 """
 
@@ -584,6 +599,7 @@ BodyCompositionAnalysisAssistant = {
    - "或"关系：至少一个条件满足即可
    - 条件组合：严格按照括号和逻辑连接词执行
 4. **严格验证原则**：如果任何一个必要条件不满足，绝对不能输出该异常，即使其他条件满足
+5. **确保完整性**：确保对所有异常都进行了判断，不要遗漏
 
 【输出格式要求 - 优先输出符合条件的异常】
 必须严格按照以下JSON格式输出，不得添加任何额外文字说明：
@@ -626,15 +642,15 @@ BodyCompositionAnalysisAssistant = {
 - 输出不符合条件的异常分析过程"""
 }
 
-# 体态异常分析助手
+# 体态异常分析助手（有骨盆）
 PostureAnalysisAssistant = {
     "model": "qwen-turbo-latest", 
-    "name": '体态异常分析机器人',
-    "description": '专门负责体态异常分析的助手，严格基于决策树规则进行异常判断',
-    "instructions": f"""你是一个严格按照决策树规则的体态异常分析专家，专门负责体态相关异常的判断。
+    "name": '体态异常分析机器人（有骨盆）',
+    "description": '专门负责有骨盆体态异常分析的助手，严格基于决策树规则进行异常判断',
+    "instructions": f"""你是一个严格按照决策树规则的体态异常分析专家，专门负责有骨盆相关的体态异常判断。
 
 【决策树规则】
-{tiwei_decision_tree}
+{posture_decision_tree}
 
 【核心分析流程 - 必须严格遵守】
 **决策树严格分析**
@@ -645,14 +661,69 @@ PostureAnalysisAssistant = {
    - "或"关系：至少一个条件满足即可
    - 条件组合：严格按照括号和逻辑连接词执行
 4. **严格验证原则**：如果任何一个必要条件不满足，绝对不能输出该异常，即使其他条件满足
+5. **确保完整性**：确保对所有异常都进行了判断，不要遗漏
 
 【输出格式要求 - 优先输出符合条件的异常】
 必须严格按照以下JSON格式输出，不得添加任何额外文字说明：
 
 ```json
 {{
-  "analysis_type": "体态决策树分析",
-  "analysis_category": "posture",
+  "analysis_type": "体态决策树分析（有骨盆）",
+  "analysis_category": "posture_with_pelvis",
+  "identified_abnormalities": {{
+    "posture": [
+      {{
+        "abnormality_name": "异常名称", 
+        "priority": 优先级数字,
+        "condition_verification": "判断过程"
+        "meets_decision_tree": true | false,
+      }}
+    ]
+  }},
+}}
+```
+
+【重要输出原则】
+1. **优先输出符合决策树的异常**：identified_abnormalities部分放在前面且详细描述
+2. **按优先级排序**：所有符合的异常必须按优先级从高到低排序（数字越小优先级越高）
+3. **确保完整性**：确保输出所有符合的异常，不要遗漏
+
+【严格禁止 - 违反将导致分析失效】
+- 在分析中输出决策树中不存在的异常名称
+- **绝对禁止在任何一个必要条件不满足时输出该异常**（即使部分条件满足）
+- 绕过条件验证过程直接给出结论
+- 对"且"逻辑关系的误解（所有条件必须同时满足）
+- 输出不符合条件的异常分析过程"""
+}
+
+# 体态异常分析助手（无骨盆）
+PostureAnalysisNoPelvisAssistant = {
+    "model": "qwen-turbo-latest", 
+    "name": '体态异常分析机器人（无骨盆）',
+    "description": '专门负责无骨盆体态异常分析的助手，严格基于决策树规则进行异常判断',
+    "instructions": f"""你是一个严格按照决策树规则的体态异常分析专家。
+
+【决策树规则】
+{posture_decision_tree_no_pelvis}
+
+【核心分析流程 - 必须严格遵守】
+**决策树严格分析**
+1. **绝对禁止推测**：只能输出决策树中明确存在的异常名称
+2. **判断条件**：有多条判断路径的情况，满足其中一条路径即可
+3. **逻辑关系严格执行**：
+   - "且"关系：所有条件必须同时满足，任何一个条件不满足则整个异常判断为假
+   - "或"关系：至少一个条件满足即可
+   - 条件组合：严格按照括号和逻辑连接词执行
+4. **严格验证原则**：如果任何一个必要条件不满足，绝对不能输出该异常，即使其他条件满足
+5. **确保完整性**：确保对所有异常都进行了判断，不要遗漏
+
+【输出格式要求 - 优先输出符合条件的异常】
+必须严格按照以下JSON格式输出，不得添加任何额外文字说明：
+
+```json
+{{
+  "analysis_type": "体态决策树分析（无骨盆）",
+  "analysis_category": "posture_no_pelvis",
   "identified_abnormalities": {{
     "posture": [
       {{
@@ -683,11 +754,11 @@ PostureAnalysisAssistant = {
 SummaryAssistant = {
     "model": "qwen-turbo-latest",
     "name": '身体异常总结机器人',
-    "description": '一个专业的身体异常分析助手，负责整合异常分析结果和知识库查询结果，生成完整的异常分析综合报告',
-    "instructions": """你是一个专业的身体异常分析总结专家，负责整合异常分析结果和知识库查询结果，提供最终的综合报告。
+    "description": '一个专业的身体异常分析助手，负责整合三项异常分析结果和知识库查询结果，生成完整的异常分析综合报告',
+    "instructions": """你是一个专业的身体异常分析总结专家，负责整合三项异常分析结果和知识库查询结果，提供最终的综合报告。
 
 【核心任务】
-1. 接收并发异常分析结果（体成分、体围、体态异常结论、判断过程）
+1. 接收三项并发异常分析结果（体成分+体围、有骨盆体态、无骨盆体态异常结论、判断过程）
 2. 接收已查询好的知识库解决方案信息
 3. 整合异常分析结果和知识库查询结果，生成包含完整信息的身体异常分析综合报告
 4. 按照优先级排序所有异常
@@ -696,7 +767,7 @@ SummaryAssistant = {
 ## 身体异常完整分析报告
 
 ### 一、异常结论汇总
-[列出所有检测到的异常，体成分、体围和体态分别按优先级排序]
+[列出所有检测到的异常，体成分、体围和体态（来自有骨盆和无骨盆分析）分别按优先级排序]
 
 ### 二、体成分异常详细分析（按优先级排序）
 1. **[优先级X] 异常名称**
@@ -717,6 +788,7 @@ SummaryAssistant = {
     - **对身体的影响**: [从知识库获得的影响分析] 
 
 ### 四、体态异常详细分析（按优先级排序）
+[注：体态异常来自有骨盆体态分析和无骨盆体态分析的综合结果]
 1. **[优先级X] 异常名称**
     - **优先级**: [决策树中的优先级]
     - **判断结果**: [基于专业指标分析（不要显示具体判断阈值），给出判断流程]
@@ -729,8 +801,9 @@ SummaryAssistant = {
 - 给出一段话的整体身体状况评估与总结
 
 【严格要求】
-- 必须整合所有并发分析结果和提供的知识库信息
+- 必须整合所有三项并发分析结果和提供的知识库信息
 - 体成分、体围和体态分别按照优先级排序（数字越小优先级越高）
+- 体态异常包含了有骨盆和无骨盆两个分析的综合结果
 - 确保每个异常都有完整的信息
 - 基于提供的知识库查询结果来补充解决方案、症状、影响等信息
 - 如果某个类别没有异常，则不显示该类别的分析部分"""
@@ -747,6 +820,7 @@ assistant_mapper = {
     "ChatAssistant": ChatAssistant,
     "BodyCompositionAnalysisAssistant": BodyCompositionAnalysisAssistant,
     "PostureAnalysisAssistant": PostureAnalysisAssistant,
+    "PostureAnalysisNoPelvisAssistant": PostureAnalysisNoPelvisAssistant,
     "SummaryAssistant": SummaryAssistant
 }
 
@@ -756,7 +830,7 @@ import concurrent.futures
 import threading
 
 def analyze_abnormalities_concurrently(user_body_data, knowledge_base=None):
-    """并发执行体成分+体围和体态异常分析"""
+    """并发执行体成分+体围、有骨盆体态和无骨盆体态异常分析"""
     
     import os
     from datetime import datetime
@@ -793,75 +867,119 @@ def analyze_abnormalities_concurrently(user_body_data, knowledge_base=None):
         
         return "BodyComposition", response
     
-    def analyze_posture(user_data):
-        """分析体态异常"""
+    def analyze_posture_with_pelvis(user_data):
+        """分析有骨盆体态异常"""
         assistant_config = assistant_mapper["PostureAnalysisAssistant"] 
-        query = f"请基于以下用户身体数据，严格按照决策树规则分析体态异常。\n\n用户身体数据：{user_data}\n\n请详细显示每个异常的判断过程和数据匹配情况。"
+        query = f"请基于以下用户身体数据，严格按照决策树规则分析有骨盆相关的体态异常。\n\n用户身体数据：{user_data}\n\n请详细显示每个异常的判断过程和数据匹配情况。"
         
         response = ""
-        print(f"开始体态分析...")
+        print(f"开始有骨盆体态分析...")
         for chunk in get_agent_response_stream(assistant_config, query, knowledge_base=knowledge_base):
             response += chunk
         
         # 保存到txt文件
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{output_dir}/posture_analysis_{timestamp}.txt"
+        filename = f"{output_dir}/posture_with_pelvis_analysis_{timestamp}.txt"
         try:
             with open(filename, 'w', encoding='utf-8') as f:
-                f.write(f"体态异常分析结果\n")
+                f.write(f"有骨盆体态异常分析结果\n")
                 f.write(f"分析时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write("="*50 + "\n\n")
                 f.write(f"查询内容:\n{query}\n\n")
                 f.write("="*50 + "\n\n")
                 f.write(f"分析结果:\n{response}\n")
-            print(f"体态分析结果已保存到: {filename}")
+            print(f"有骨盆体态分析结果已保存到: {filename}")
         except Exception as e:
-            print(f"保存体态分析结果失败: {e}")
+            print(f"保存有骨盆体态分析结果失败: {e}")
         
-        return "Posture", response
+        return "PostureWithPelvis", response
     
-    # 使用线程池并发执行两个分析任务
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        # 提交两个任务
+    def analyze_posture_no_pelvis(user_data):
+        """分析无骨盆体态异常"""
+        assistant_config = assistant_mapper["PostureAnalysisNoPelvisAssistant"] 
+        query = f"请基于以下用户身体数据，严格按照决策树规则分析无骨盆相关的体态异常。\n\n用户身体数据：{user_data}\n\n请详细显示每个异常的判断过程和数据匹配情况。"
+        
+        response = ""
+        print(f"开始无骨盆体态分析...")
+        for chunk in get_agent_response_stream(assistant_config, query, knowledge_base=knowledge_base):
+            response += chunk
+        
+        # 保存到txt文件
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{output_dir}/posture_no_pelvis_analysis_{timestamp}.txt"
+        try:
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(f"无骨盆体态异常分析结果\n")
+                f.write(f"分析时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write("="*50 + "\n\n")
+                f.write(f"查询内容:\n{query}\n\n")
+                f.write("="*50 + "\n\n")
+                f.write(f"分析结果:\n{response}\n")
+            print(f"无骨盆体态分析结果已保存到: {filename}")
+        except Exception as e:
+            print(f"保存无骨盆体态分析结果失败: {e}")
+        
+        return "PostureNoPelvis", response
+    
+    # 使用线程池并发执行三个分析任务
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        # 提交三个任务
         #组合用户体成分体围数据
         user_body_data = json.loads(user_body_data)
-        user_data = {}
-        user_data["user_info"] = user_body_data["user_info"]
-        user_data["body_composition"] = user_body_data["body_composition"]
-        user_data["girth_info"] = user_body_data["girth_info"]
-        future_body_comp = executor.submit(analyze_body_composition_girth, user_data)
         
-        user_data = {}
-        user_data["user_info"] = user_body_data["user_info"]
-        user_data["posture_metrics"] = user_body_data["posture_metrics"]
-        user_data["posture_conclusion"] = user_body_data["posture_conclusion"]
-        print(user_data)
-        future_posture = executor.submit(analyze_posture, user_data)
+        # 任务1：体成分+体围分析
+        user_data_body_comp = {}
+        user_data_body_comp["user_info"] = user_body_data["user_info"]
+        user_data_body_comp["body_composition"] = user_body_data["body_composition"]
+        user_data_body_comp["girth_info"] = user_body_data["girth_info"]
+        future_body_comp = executor.submit(analyze_body_composition_girth, user_data_body_comp)
+        
+        # 任务2和3：体态分析（有骨盆和无骨盆都使用相同的体态数据）
+        user_data_posture = {}
+        user_data_posture["user_info"] = user_body_data["user_info"]
+        user_data_posture["posture_metrics"] = user_body_data["posture_metrics"]
+        user_data_posture["posture_conclusion"] = user_body_data["posture_conclusion"]
+        print(f"体态分析数据: {user_data_posture}")
+        
+        future_posture_with_pelvis = executor.submit(analyze_posture_with_pelvis, user_data_posture)
+        future_posture_no_pelvis = executor.submit(analyze_posture_no_pelvis, user_data_posture)
         
         # 等待所有任务完成并收集结果
         results = {}
+        
+        # 等待体成分+体围分析结果
         try:
-            analysis_type, response = future_body_comp.result(timeout=120)  # 60秒超时
+            analysis_type, response = future_body_comp.result(timeout=120)
             results[analysis_type] = response
             print(f"\n{analysis_type} 分析完成，响应长度: {len(response)}")
         except Exception as e:
             print(f"体成分+体围分析失败: {e}")
             results["BodyComposition"] = f"分析失败: {str(e)}"
         
+        # 等待有骨盆体态分析结果
         try:
-            analysis_type, response = future_posture.result(timeout=120)  # 60秒超时
+            analysis_type, response = future_posture_with_pelvis.result(timeout=120)
             results[analysis_type] = response
             print(f"\n{analysis_type} 分析完成，响应长度: {len(response)}")
         except Exception as e:
-            print(f"体态分析失败: {e}")
-            results["Posture"] = f"分析失败: {str(e)}"
+            print(f"有骨盆体态分析失败: {e}")
+            results["PostureWithPelvis"] = f"分析失败: {str(e)}"
+        
+        # 等待无骨盆体态分析结果
+        try:
+            analysis_type, response = future_posture_no_pelvis.result(timeout=120)
+            results[analysis_type] = response
+            print(f"\n{analysis_type} 分析完成，响应长度: {len(response)}")
+        except Exception as e:
+            print(f"无骨盆体态分析失败: {e}")
+            results["PostureNoPelvis"] = f"分析失败: {str(e)}"
     
     # 保存并发分析汇总结果
     try:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         summary_filename = f"{output_dir}/concurrent_analysis_summary_{timestamp}.txt"
         with open(summary_filename, 'w', encoding='utf-8') as f:
-            f.write(f"并发异常分析汇总\n")
+            f.write(f"三项并发异常分析汇总\n")
             f.write(f"分析时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write("="*60 + "\n\n")
             
@@ -871,16 +989,16 @@ def analyze_abnormalities_concurrently(user_body_data, knowledge_base=None):
                 f.write(f"{response}\n\n")
                 f.write("="*60 + "\n\n")
         
-        print(f"并发分析汇总已保存到: {summary_filename}")
+        print(f"三项并发分析汇总已保存到: {summary_filename}")
     except Exception as e:
-        print(f"保存并发分析汇总失败: {e}")
+        print(f"保存三项并发分析汇总失败: {e}")
     
     return results
 
 def merge_abnormality_results(analysis_results):
-    """合并并发分析的结果为统一的JSON格式，只保留meets_decision_tree为true的异常"""
+    """合并三项并发分析的结果为统一的JSON格式，只保留meets_decision_tree为true的异常"""
     merged_result = {
-        "analysis_type": "并发决策树严格分析",
+        "analysis_type": "三项并发决策树严格分析",
         "identified_abnormalities": {
             "body_composition": [],
             "girth": [], 
@@ -889,7 +1007,8 @@ def merge_abnormality_results(analysis_results):
         "summary": {
             "total_body_composition_checked": 0,
             "total_girth_checked": 0,
-            "total_posture_checked": 0,
+            "total_posture_with_pelvis_checked": 0,
+            "total_posture_no_pelvis_checked": 0,
             "total_meets_criteria": 0,
             "total_rejected": 0
         }
@@ -926,7 +1045,7 @@ def merge_abnormality_results(analysis_results):
                                 merged_result["identified_abnormalities"]["girth"].append(ab)
                                 abnormalities_for_query.append(ab.get("abnormality_name", ""))
                     
-                    # 合并体态异常 - 只保留meets_decision_tree为true的
+                    # 合并体态异常（包括有骨盆和无骨盆） - 只保留meets_decision_tree为true的
                     if "posture" in abnormalities:
                         for ab in abnormalities["posture"]:
                             if ab.get("meets_decision_tree", False) == True:
@@ -939,8 +1058,10 @@ def merge_abnormality_results(analysis_results):
                     if analysis_type == "BodyComposition":
                         merged_result["summary"]["total_body_composition_checked"] = summary.get("total_checked", 0)
                         merged_result["summary"]["total_girth_checked"] = summary.get("total_checked", 0)
-                    elif analysis_type == "Posture":
-                        merged_result["summary"]["total_posture_checked"] = summary.get("total_checked", 0)
+                    elif analysis_type == "PostureWithPelvis":
+                        merged_result["summary"]["total_posture_with_pelvis_checked"] = summary.get("total_checked", 0)
+                    elif analysis_type == "PostureNoPelvis":
+                        merged_result["summary"]["total_posture_no_pelvis_checked"] = summary.get("total_checked", 0)
                     
                     merged_result["summary"]["total_meets_criteria"] += int(summary.get("meets_criteria", 0))
                     merged_result["summary"]["total_rejected"] += int(summary.get("rejected_count", 0))
@@ -1010,7 +1131,6 @@ def get_agent_response_sync(assistant_config, message='', return_tool_output=Fal
 
 def get_agent_response_stream(assistant_config, message='', knowledge_base=None):
     """输入message信息，输出为指定助手配置的回复（流式）"""
-    print(f"Assistant: {assistant_config['name']}")
     
     try:
         # 创建OpenAI客户端
@@ -1412,7 +1532,7 @@ def get_unified_response(multi_modal_input, history, mode, model, temperature, m
         yield from get_model_response(multi_modal_input, history, model, temperature, max_tokens, history_round, knowledge_base, similarity_threshold, chunk_cnt)
         
 def test_body_analysis():
-    """测试身体异常分析的多智能体流程 - 优化版本：优先输出符合决策树的异常"""
+    """测试身体异常分析的三项多智能体流程 - 体成分+体围、有骨盆体态、无骨盆体态：优先输出符合决策树的异常"""
     # 示例用户数据
     user_body_data = {
         "mass_info":{
@@ -1461,7 +1581,7 @@ def test_body_analysis():
     
     
     # 转换为字符串格式供分析使用
-    query = f"请分析以下身体数据并生成1个体成分异常和最多4个体态异常分析：{json.dumps(user_body_data, ensure_ascii=False)}"
+    query = f"请分析以下身体数据，进行三项并发分析（体成分+体围、有骨盆体态、无骨盆体态）：{json.dumps(user_body_data, ensure_ascii=False)}"
     
     # 调用多智能体分析
     try:
@@ -1469,11 +1589,11 @@ def test_body_analysis():
         time_start = time.time()
         response, knowledge_chunks = get_multi_agent_response_internal(query, "异常2")
         time_end = time.time()
-        print("=== 多智能体分析结果 ===")
+        print("=== 三项多智能体分析结果 ===")
         print(f"分析结果：{response}")
         #print("\n=== 知识库召回信息 ===")
         #print(knowledge_chunks)
-        print(f"多智能体分析时间：{time_end - time_start}秒")
+        print(f"三项多智能体分析时间：{time_end - time_start}秒")
         return response, knowledge_chunks
     except Exception as e:
         print(f"测试失败：{e}")
