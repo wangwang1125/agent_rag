@@ -16,7 +16,7 @@ from dashscope import Assistants, Messages, Runs, Threads
 import dashscope
 import json
 import ast
-from tools import MedicalAnalysis, HealthAssessment
+from tools import MedicalAnalysis
 
 # 禁用DashScope和相关库的日志输出
 logging.getLogger('dashscope').setLevel(logging.ERROR)
@@ -111,25 +111,476 @@ EMBED_MODEL = DashScopeEmbedding(
 # 设置嵌入模型
 Settings.embed_model = EMBED_MODEL
 
+# ==================== 决策树定义 ====================
+
+decision_tree = """
+{
+    "体成分": {
+        "体重偏低": {
+            "优先级": 3,
+            "异常判断流程": [
+                "BMI < 18.5 且（女性去脂体重指数 ≥ 15 或男性去脂体重指数 ≥ 17）"
+            ]
+        },
+        "消瘦": {
+            "优先级": 1,
+            "异常判断流程": [
+                "BMI < 18.5 且（女性去脂体重指数 < 15 或 男性去脂体重指数 < 17）"
+            ]
+        },
+        "肌肉过少": {
+            "优先级": 2,
+            "异常判断流程": [
+                "BMI > 18.5 且（女性去脂体重指数 < 15 或 男性去脂体重指数 < 17）",
+                "BMI ≥ 28（海外标准：≥ 30）且 体脂率（女性 ≥ 30% 或 男性 ≥ 25%）且 双侧小腿围（女性 < 33cm 或 男性 < 34cm）",
+                "BMI ≥ 28（海外标准：≥ 30）且 体脂率（女性 ≥ 30% 或 男性 ≥ 25%）且 去脂体重指数（女性 < 15 或 男性 < 17）"
+            ]
+        },
+        "中心性肥胖": {
+            "优先级": 2,
+            "异常判断流程": [
+                "18.5 < BMI < 27.9（海外标准：< 30）且 腰臀比：中国以外地区：男性 > 1.0 或 女性 > 0.9 中国地区：男性 > 0.9 或 女性 > 0.85",
+                "18.5 < BMI < 27.9（海外标准：< 30）且 腰围（女性 ≥ 80cm 或 男性 ≥ 85cm，海外男性 ≥ 90cm）且 内脏脂肪等级 ≥ 10"
+            ]
+        },
+        "肥胖": {
+            "优先级": 2,
+            "异常判断流程": [
+                "BMI ≥ 28（海外标准：≥ 30）且 体脂率（女性 ≥ 30% 或 男性 ≥ 25%）"
+            ]
+        },
+        "少肌性肥胖": {
+            "优先级": 1,
+            "异常判断流程": [
+                "BMI ≥ 28（海外标准：≥ 30）且 体脂率（女性 ≥ 30% 或 男性 ≥ 25%）且 双侧小腿围（女性 < 33cm 或 男性 < 34cm）",
+                "BMI ≥ 28（海外标准：≥ 30）且 体脂率（女性 ≥ 30% 或 男性 ≥ 25%）且 去脂体重指数（女性 < 15 或 男性 < 17）"
+            ]
+        },
+        "体重正常": {
+            "优先级": 5,
+            "异常判断流程": [
+                "18.5 ≤ BMI < 24且 体脂率（女性 < 30% 且 男性 < 25%）且（腰围：女性 < 80cm 且 男性 < 85cm，海外男性 < 90cm）或 内脏脂肪等级 < 10"
+            ]
+        },
+        "超重": {
+            "优先级": 4,
+            "异常判断流程": [
+                "24 ≤ BMI < 28（海外标准：< 30）且（体脂率：女性 25%-30% 或 男性 20%-25%）或（腰围：女性 77-80cm 或 男性 80-85cm 且 8 ≤ 内脏脂肪等级 < 10）"
+            ]
+        },
+        "肌肉发达": {
+            "优先级": 5,
+            "异常判断流程": [
+                "24 ≤ BMI < 28（海外标准：< 30）且 去脂体重指数（男性 ≥ 20 或 女性 ≥ 18）且 体脂率（女性 < 25% 且 男性 < 20%）且（腰围女性 < 77cm 且 男性 < 80cm或 内脏脂肪等级 < 8或 腰臀比：男性 < 0.9 ，女性 < 0.8（海外：男性 < 0.9 且 女性 < 0.85））"
+            ]
+        },
+        "健康风险增加": {
+            "优先级": 3,
+            "异常判断流程": [
+                "18.5 ≤ BMI < 24且 体脂率（女性 < 30% 且 男性 < 25%）且（腰围：女性 < 80cm 且 男性 < 85cm，海外男性 < 90cm）或 内脏脂肪等级 < 10 且 存在以下任一风险指标：颈围：男性 > 43cm 或 女性 > 41cm或 细胞外液/总水分 ≥ 0.4或 细胞外液/细胞内液 ≤ 0.57",
+                "24 ≤ BMI < 28（海外标准：< 30）且（体脂率：女性 25%-30% 或 男性 20%-25%）或（腰围：女性 77-80cm 或 男性 80-85cm且 8 ≤ 内脏脂肪等级 < 10）且 存在以下任一风险指标：颈围：男性 > 43cm 或 女性 > 41cm或 细胞外液/总水分 ≥ 0.4或 细胞外液/细胞内液 ≤ 0.57"
+            ]
+        }
+    },
+    "体态": {
+        "可能骨盆旋移": {
+            "优先级": 3,
+            "异常判断流程": [
+                "骨盆前移角度≤179或骨盆前移距离≥2cm且双侧膝关节角度差异相差≥5°。同时较大腿型角度一侧的膝关节角度比较小膝关节一侧腿型角度多3"
+            ]
+        },
+        "可能骨盆前移": {
+            "优先级": 3,
+            "异常判断流程": [
+                "骨盆前移角度≤179或骨盆前移距离>2cm且双侧膝关节角度≥181"
+            ]
+        },
+        "可能骨盆前倾": {
+            "优先级": 3,
+            "异常判断流程": [
+                "骨盆前移角度>179或骨盆前移距离≤2cm且双侧膝关节角度>184°且双侧腿型角度<179"
+            ]
+        },
+        "可能骨盆后倾": {
+            "优先级": 3,
+            "异常判断流程": [
+                "骨盆前移角度>179或骨盆前移距离≤2cm且双侧膝关节角度<179°且双侧腿型角度>181"
+            ]
+        },
+        "骨盆旋移且可能诱发肩关节活动受限": {
+            "优先级": 2,
+            "异常判断流程": [
+                "骨盆前移角度≤179或骨盆前移距离≥2cm且双侧膝关节角度差异相差≥5°。同时较大腿型角度一侧的膝关节角度比较小膝关节一侧腿型角度多3且膝关节角度较大一侧肩部前伸上举上举小于<175°"
+            ]
+        },
+        "骨盆旋移且可能诱发头侧歪": {
+            "优先级": 2,
+            "异常判断流程": [
+                "骨盆前移角度≤179或骨盆前移距离≥2cm且双侧膝关节角度差异相差≥5°。同时较大腿型角度一侧的膝关节角度比较小膝关节一侧腿型角度多3且头侧歪朝向为较小膝关节角度一侧"
+            ]
+        },
+        "高低肩是由头侧歪诱发的": {
+            "优先级": 5,
+            "异常判断流程": [
+                ""
+            ]
+        },
+        "（头歪侧/高肩一侧）斜方肌和肩胛提肌紧张": {
+            "优先级": 6,
+            "异常判断流程": [
+                "存在头歪向一侧（头歪侧）且存在高低肩（高肩侧），并且高肩侧与头歪侧相反"
+            ]
+        },
+        "高肩侧 上斜方肌紧张": {
+            "优先级": 6,
+            "异常判断流程": [
+                "存在头前引且存在高低肩（高肩侧）"
+            ]
+        },
+        "头侧歪侧肩胛提肌、头侧歪侧斜角肌、高肩侧上斜方肌紧张、头侧歪的对侧 胸锁乳突肌紧张": {
+            "优先级": 6,
+            "异常判断流程": [
+                "存在头前引、存在头歪向一侧（头歪侧）且存在高低肩（高肩侧），并且高肩侧与头歪侧相反（对侧关系）"
+            ]
+        },
+        "头侧歪侧斜角肌紧张、对侧胸锁乳突肌紧张": {
+            "优先级": 6,
+            "异常判断流程": [
+                "头歪向一侧（头歪侧）、高低肩（高肩侧）、圆肩（圆肩侧）及头前引这四项中至少两项同时存在，且这些症状出现在身体同侧"
+            ]
+        },
+        "且前锯肌紧张、三角肌前束、冈上肌、下斜方肌无力": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在头侧歪或高低肩且（头歪侧/高肩一侧)斜方肌和肩胛提肌紧张且头歪侧或高肩侧肩部外展上举小于175°"
+            ]
+        },
+        "且三角肌中束和后束无力": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在头侧歪或高低肩且（头歪侧/高肩一侧)斜方肌和肩胛提肌紧张且头歪侧或高肩一侧前伸上举小于175"
+            ]
+        },
+        "且 前锯肌紧张、三角肌前/中/后束、冈上肌、下斜方肌无力": {
+            "优先级": 5,
+            "异常判断流程": [
+                "前锯肌紧张、三角肌前束、网上肌、下斜方肌无力且三角肌中/后束无力"
+            ]
+        },
+        "可能存在单侧足弓塌陷": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在高低肩，并且存在头侧歪、头前引或圆肩中至少一项，并且头侧歪朝向高肩侧，并且低肩一侧腿型角度≥180，百高肩一侧腿型角度≤179"
+            ]
+        },
+        "头侧歪和（或）头前引和（或）高低肩是一个问题诱发": {
+            "优先级": 5,
+            "异常判断流程": [
+                "低肩一侧腿型角度≥180，百高肩一侧腿型角度≤179"
+            ]
+        },
+        "头侧歪/高低肩/头前引 均由骨盆旋移诱发": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在高低肩，且存在头歪、头前引或圆肩中至少一项，且（存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或存在头前引且存在高低肩，或存在头前引、存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或头歪向一侧、高低肩、圆肩及头前引这四项中至少两项同时存在且这些症状出现在身体同侧），且存在骨盆前移的可能性"
+            ]
+        },
+        "单圆肩侧胸小肌、胸锁乳突肌、斜角肌、前锯肌紧张": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在高低肩，且存在头歪、头前引或圆肩中至少一项，且（存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或存在头前引且存在高低肩，或存在头前引、存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或头歪向一侧、高低肩、圆肩及头前引这四项中至少两项同时存在且这些症状出现在身体同侧），且在圆肩侧肩部前屈上举角度 < 178° 和/或 外展上举角度 < 178°"
+            ]
+        },
+        "头前引可能是由骨盆前倾或前移导致": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在高低肩，且存在头歪、头前引或圆肩中至少一项，且（存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或存在头前引且存在高低肩，或存在头前引、存在头歪向一侧且存在高低肩并且高肩侧与头歪侧相反，或头歪向一侧、高低肩、圆肩及头前引这四项中至少两项同时存在且这些症状出现在身体同侧），且存在骨盆前移的可能性，并且头前引程度超标"
+            ]
+        },
+        "圆肩侧胸小肌、胸大肌紧张": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在单侧圆肩，且圆肩侧 肩部前伸上举>=175°"
+            ]
+        },
+        "圆肩侧胸小肌、胸大肌紧张三角肌中束、后束力量不足，大圆肌紧张": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在单侧圆肩，且圆肩侧 肩部前伸上举<175°"
+            ]
+        },
+        "头侧歪侧 胸锁乳突肌、斜角肌紧张": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在单侧圆肩，且圆肩侧 肩部前伸上举>=175°，且头前引超标或头侧歪超标，且头侧歪和圆肩为同侧",
+                "存在单侧圆肩，且圆肩侧 肩部前伸上举<175°，且头前引超标或头侧歪超标，且头侧歪和圆肩为同侧"
+            ]
+        },
+        "头侧歪的 对侧的胸锁乳突肌、同侧斜角肌": {
+            "优先级": 5,
+            "异常判断流程": [
+                "存在单侧圆肩，且圆肩侧 肩部前伸上举>=175°，且头前引超标或头侧歪超标，且头侧歪和圆肩为异侧",
+                "存在单侧圆肩，且圆肩侧 肩部前伸上举<175°，且头前引超标或头侧歪超标，且头侧歪和圆肩为异侧"
+            ]
+        },
+        "上交叉综合征": {
+            "优先级": 4,
+            "异常判断流程": [
+                "存在双侧圆肩，且头前引超标"
+            ]
+        },
+        "上下交叉综合征": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在双侧圆肩，且头前引超标，且可能骨盆前倾"
+            ]
+        },
+        "双侧胸小肌、胸大肌、三角肌前束与菱形肌、下斜方、三角肌后束、冈下肌和小圆肌力量不对称": {
+            "优先级": 5,
+            "异常判断流程": [
+                "不存在圆肩，且头前引不超标"
+            ]
+        },
+        "梨形臀可能由骨盆前倾诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在骨盆前倾，且是梨形臀，且体脂率<35%且BMI<24"
+            ]
+        },
+        "骨盆前倾和膝超伸可能是由足弓较低诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在骨盆前倾，且双膝膝超伸，且腿型角度双侧<180°"
+            ]
+        },
+        "膝超伸可能是由骨盆前倾诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在骨盆前倾，且双膝膝超伸，且腿型角度双侧>180°"
+            ]
+        },
+        "腰椎过度前凸是由骨盆前倾导诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在骨盆前倾，且腰椎前凸过度"
+            ]
+        },
+        "胸椎过度后凸可能是由于骨盆前倾诱发": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在骨盆前倾，且腰椎前凸过度，且胸椎后凸过度"
+            ]
+        },
+        "脊椎曲度在矢状面上过度位移": {
+            "优先级": 3,
+            "异常判断流程": [
+                "存在骨盆前倾，且s1在C7后方超过正常范围(>4cm)",
+                "存在骨盆前倾，且双侧圆肩且头前倾，且s1在C7后方超过正常范围(>4cm)"
+            ]
+        },
+        "上下交叉综合征，上交叉综合征可能由骨盆前倾诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在骨盆前倾，且双侧圆肩且头前倾",
+                "存在骨盆前倾，且骨盆前移"
+            ]
+        },
+        "骨盆后倾可能由骨盆前移诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在骨盆后倾，且骨盆前移"
+            ]
+        },
+        "腰椎前凸不足由骨盆后倾诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在骨盆后倾，且腰椎前凸不足"
+            ]
+        },
+        "平背姿态可能由骨盆后倾诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在骨盆后倾，且胸椎前凸不足"
+            ]
+        },
+        "颈椎过度前凸由平背诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在骨盆后倾，且胸椎前凸不足，且头前倾数值为负"
+            ]
+        },
+        "可能存在高足弓": {
+            "优先级": 3,
+            "异常判断流程": [
+                "存在骨盆后倾，且双膝膝关节角度均<180°，且腿型角度双侧>180°"
+            ]
+        },
+        "臀型可能是由骨盆后倾诱发": {
+            "优先级": 3,
+            "异常判断流程": [
+                "存在骨盆后倾，且方形臀"
+            ]
+        },
+        "高低肩是由长短腿 诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在长短腿，且存在高低肩，且长短腿(短腿侧肩膀高)或躯干倾斜(躯干倾斜侧肩膀高)或中心不平衡(足底压力低侧肩膀高)"
+            ]
+        },
+        "高低肩是由躯干倾斜诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在躯干倾斜，且存在高低肩，且长短腿(短腿侧肩膀高)或躯干倾斜(躯干倾斜侧肩膀高)或中心不平衡(足底压力低侧肩膀高)"
+            ]
+        },
+        "高低肩是由重心不平衡 诱发": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在重心不平衡(长腿侧足底重量>短腿侧+2kg)，且存在高低肩，且长短腿(短腿侧肩膀高)或躯干倾斜(躯干倾斜侧肩膀高)或中心不平衡(足底压力低侧肩膀高)"
+            ]
+        },
+        "高低肩是由长短腿/重心不平衡 诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在长短腿，且存在重心不平衡(长腿侧足底重量>短腿侧+2kg)，且存在高低肩，且长短腿(短腿侧肩膀高)或躯干倾斜(躯干倾斜侧肩膀高)或中心不平衡(足底压力低侧肩膀高)"
+            ]
+        },
+        "高低肩是由长短腿/躯干倾斜 诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在长短腿，且存在躯干倾斜，且存在高低肩，且长短腿(短腿侧肩膀高)或躯干倾斜(躯干倾斜侧肩膀高)或中心不平衡(足底压力低侧肩膀高)"
+            ]
+        },
+        "高低肩是由躯干倾斜/重心不平衡 诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在躯干倾斜，且存在重心不平衡(长腿侧足底重量>短腿侧+2kg)，且存在高低肩，且长短腿(短腿侧肩膀高)或躯干倾斜(躯干倾斜侧肩膀高)或中心不平衡(足底压力低侧肩膀高)"
+            ]
+        },
+        "高低肩是由长短腿/躯干倾斜/重心不平衡 诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在长短腿，且存在躯干倾斜，且存在重心不平衡(长腿侧足底重量>短腿侧+2kg)，且存在高低肩，且长短腿(短腿侧肩膀高)或躯干倾斜(躯干倾斜侧肩膀高)或中心不平衡(足底压力低侧肩膀高)"
+            ]
+        },
+        "躯干倾斜是由重心不平衡诱发": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在长短腿，且长腿侧足底重量>短腿侧+0.5kg，且躯干向短腿侧倾斜"
+            ]
+        },
+        "重心变化是由长短腿诱发": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在长短腿，且长腿侧足底重量>短腿侧+0.5kg"
+            ]
+        },
+        "脊柱横向移位是由长短腿诱发": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在长短腿，且骶骨中点垂线较颈椎第7椎体(C7)偏向长腿侧"
+            ]
+        },
+        "脊柱过度位移由头前引诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在头前引，且无骨盆前倾，且s1在C7后方超过正常范围(>4cm)"
+            ]
+        },
+        "头前引是由枕后肌群紧张诱发": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在头前引，且颈椎前屈角度不足，但其他正常"
+            ]
+        },
+        "头前引 是由胸锁乳突肌和斜角肌紧张诱发": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在头前引，且颈椎后伸、双侧屈曲 有一个角度不足"
+            ]
+        },
+        "（头侧歪对侧）胸锁乳突肌紧张可能由头侧歪诱发": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在头前引，且存在头侧歪，且颈椎朝向头侧歪侧旋转角度不足、但朝对侧侧屈角度正常"
+            ]
+        },
+        "（头侧歪侧）斜角肌紧张": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在头侧歪、无头前引，且颈椎向头侧歪对侧侧屈时角度足，但向头侧歪对侧旋转角度正常"
+            ]
+        },
+        "（头侧歪侧）胸锁乳突肌紧张": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在头侧歪、无头前引，且颈椎向头侧歪对侧侧屈时角度正常，但向头侧歪对侧旋转角度不足"
+            ]
+        },
+        "长短腿/倾斜/足底压力由K型腿诱发": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在腿型呈现K型，且K型腿中腿型角度不正常的腿短或躯干朝腿型角度不正常侧倾斜或正常腿侧足底重量 >短腿侧+2kg"
+            ]
+        },
+        "长短腿/倾斜/足底压力由D型腿诱发": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在腿型呈现D型，且D型腿中腿型角度不正常的腿短或躯干朝腿型角度不正常侧倾斜或正常腿侧足底重量 >短腿侧+2kg"
+            ]
+        },
+        "您的臀型可能是由X型腿诱发": {
+            "优先级": 1,
+            "异常判断流程": [
+                "存在倒三角臀，且没有骨盆前后倾，且存在x型腿"
+            ]
+        }
+    },
+    "体围": {
+        "健康风险低": {
+            "优先级": 4,
+            "异常判断流程": [
+                "腰高比(腰围/身高)<0.5",
+                "腰臀比(腰围/臀围)：男性<0.9，女性<0.8"
+            ]
+        },
+        "健康风险增加": {
+            "优先级": 3,
+            "异常判断流程": [
+                "0.5<腰高比(腰围/身高)<0.6",
+                "腰臀比(腰围/臀围)：男性0.9~0.99，女性0.8~0.84"
+            ]
+        },
+        "健康风险大幅度增加": {
+            "优先级": 2,
+            "异常判断流程": [
+                "腰高比(腰围/身高)>0.6",
+                "腰臀比(腰围/臀围)：男性>=1，女性>=0.85"
+            ]
+        },
+        "中心性肥胖": {
+            "优先级": 1,
+            "异常判断流程": [
+                "腰围：亚洲:男性>90、女性>85。海外：男性≥102，女性>88"
+            ]
+        },
+        "肌肉可能不足": {
+            "优先级": 3,
+            "异常判断流程": [
+                "存在上臂围(左右)：男性<28.5，女性<27，或小腿围(左右)：男性<34，女性<33"
+            ]
+        },
+        "肌肉过少": {
+            "优先级": 2,
+            "异常判断流程": [
+                "存在上臂围(左右)：男性<28.5，女性<27，且小腿围(左右)：男性<34，女性<33"
+            ]
+        }
+    }
+}
+"""
+
 # ==================== 多智能体定义 ====================
-
-    # 决策级别的agent，决定使用哪些agent，以及它们的运行顺序
-PlannerAssistant = Assistants.create(
-    model="qwen-plus",
-    name='身体异常分析流程编排机器人',
-    description='你是身体异常分析团队的leader，你需要根据用户提供的结构化身体数据，决定要以怎样的顺序去使用这些assistant',
-    instructions="""你的团队中有以下assistant：
-    UserDataAnalysisAssistant：可以分析用户提供的结构化身体数据（包括体成分、体态、围度等），提取关键指标；
-    KnowledgeQueryAssistant：可以查询身体异常判断决策树知识库，获取体成分和体态相关的判断规则；
-    AbnormalityAnalysisAssistant：可以基于用户数据和决策树规则，进行体成分异常分析（1个）和体态异常分析（最多4个）；
-    ChatAssistant：如果用户的问题不是身体数据分析相关，则调用该assistant。
-    
-    对于结构化身体数据分析问题，推荐的流程是：["UserDataAnalysisAssistant", "KnowledgeQueryAssistant", "AbnormalityAnalysisAssistant"]
-    对于非身体数据分析问题：["ChatAssistant"]
-    
-    你的返回形式必须是一个列表，不能返回其它信息。列表中的元素只能为上述的assistant名称。"""
-)
-
 # 功能是回复日常问题。对于日常问题来说，可以使用价格较为低廉的模型作为agent的基座
 ChatAssistant = Assistants.create(
     model="qwen-turbo",
@@ -138,241 +589,147 @@ ChatAssistant = Assistants.create(
     instructions='请礼貌地回答用户的问题'
 )
 
-# 用户数据分析助手
-UserDataAnalysisAssistant = Assistants.create(
-    model="qwen-plus",
-    name='用户身体数据分析机器人',
-    description='一个专业的身体数据分析助手，能够分析用户提供的结构化身体指标数据',
-    instructions='你是一个专业的身体数据分析助手，专门负责分析用户提供的身体数据。请仔细提取用户提供的结构化身体数据，包括体成分数据(mass_info)、围度信息(girth_info)、体态评估(eval_info)等，重点对数值和已明确的异常进行结构化处理，而不要下结论。',
-    tools=[
-        {
-            'type': 'function',
-            'function': {
-                'name': '结构化身体数据分析',
-                'description': '根据用户提供的结构化身体数据，提取全部体成分、体态和体围等关键指标信息',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'user_data': {
-                            'type': 'string',
-                            'description': '用户提供的结构化身体数据内容，包含mass_info、girth_info、eval_info等'
-                        },
-                    },
-                    'required': ['user_data']},
-            }
-        }
-    ]
-)
+# UserDataAnalysisAssistant已删除，替换为直接的代码处理
 
-# 知识库查询助手
-KnowledgeQueryAssistant = Assistants.create(
-    model="qwen-plus",
-    name='身体异常决策树查询机器人',
-    description='一个专业的助手，能够查询身体异常判断决策树知识库获取体成分和体态异常相关判断规则',
-    instructions='''你是一个专业的身体异常分析助手，专门负责查询身体异常判断决策树知识库。
-
-【重要】：你必须分别调用两个工具函数：
-1. 先调用"体成分异常决策树查询"工具，查询BMI、体脂率、去脂体重等体成分相关的判断规则
-2. 再调用"体态异常决策树查询"工具，查询高低肩、头前倾、圆肩、头侧歪、骨盆前移等体态相关的判断规则
-
-无论用户数据中是否包含具体的数值指标，都要调用这两个工具函数来获取完整的决策树规则。这样可以确保后续的异常分析能够获得全面的判断依据。''',
-    tools=[
-        {
-            'type': 'function',
-            'function': {
-                'name': '体成分异常决策树查询',
-                'description': '查询体成分异常判断决策树知识库获取相关的判断规则',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'query_text': {
-                            'type': 'string',
-                            'description': '要查询的体成分指标相关内容，如BMI、体脂率、去脂体重指数等'
-                        },
-                        'knowledge_base_name': {
-                            'type': 'string',
-                            'description': '指定的知识库名称，可选参数'
-                        }
-                    },
-                    'required': ['query_text']},
-            }
-        },
-        {
-            'type': 'function',
-            'function': {
-                'name': '体态异常决策树查询',
-                'description': '查询体态异常判断决策树知识库获取相关的判断规则',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'query_text': {
-                            'type': 'string',
-                            'description': '要查询的体态指标相关内容，如高低肩、头前倾、圆肩、腿型等'
-                        },
-                        'knowledge_base_name': {
-                            'type': 'string',
-                            'description': '指定的知识库名称，可选参数'
-                        }
-                    },
-                    'required': ['query_text']},
-            }
-        }
-    ]
-)
-
-# 身体异常分析助手
+# 第一个AI：身体异常分析助手（严格决策树分析 + 补充分析）
 AbnormalityAnalysisAssistant = Assistants.create(
-    model="qwen-plus",
+    model="qwen-max-latest",
     name='身体异常分析机器人',
-    description='一个专业的身体异常分析助手，能够基于用户数据和决策树规则进行体成分和体态异常判断',
-    instructions="""你是一个专业的身体异常分析专家，专门负责根据知识库中的决策树规则和用户身体数据进行精确的异常判断。
+    description='一个专业的身体异常分析助手，严格基于决策树规则进行异常判断，当决策树无法识别异常时再进行补充分析',
+    instructions="""你是一个严格按照决策树规则的身体异常分析专家，必须按照以下两步流程进行分析：
 
-你必须严格按照以下要求执行：
+【决策树规则】
+""" + decision_tree + """
 
-【核心要求】
-1. 必须生成1个体成分异常分析和最多4个体态异常分析
-2. 严格按照知识库决策树规则进行判断，不得擅自推测
-3. 每个异常判断都必须展示完整的决策流程
-4. 按照知识库中的优先级排序异常
+【核心分析流程 - 必须严格遵守】
+**决策树严格分析**
+1. **绝对禁止推测**：只能输出决策树中明确存在的异常名称
+2. **条件必须完全满足**：用户数据必须完全符合决策树条件才能得出异常结论
+3. **逐条验证**：必须逐一检查决策树中的每个条件，进行严格数值计算和验证
+4. **判断条件**：有多条判断路径，满足其中一条路径即可
+5. **逻辑关系严格执行**：
+   - "且"关系：所有条件必须同时满足，任何一个条件不满足则整个异常判断为假
+   - "或"关系：至少一个条件满足即可
+   - 条件组合：严格按照括号和逻辑连接词执行
+6. **系统性检查**：必须逐一检查决策树中的所有异常类型，不能遗漏
+7. **明确标注**：所有通过决策树识别的异常必须明确标注为"决策树识别"
+8. **严格验证原则**：如果任何一个必要条件不满足，绝对不能输出该异常，即使其他条件满足
 
-【分析流程】
-1. 解析用户身体数据，提取关键指标
-2. 解析知识库决策树规则，识别判断条件和异常结论
-3. 将用户数据与决策树条件进行匹配
-4. 展示详细的判断过程：条件→用户数据→匹配结果→结论
-5. 按优先级排序并输出最终结论
 
 【输出格式要求】
-对于每个异常分析，必须包含：
-- 应用的决策规则条件
-- 用户数据如何匹配这些条件  
-- 具体的匹配过程和计算
-- 基于匹配结果得出的结论
-- 完整的决策流程展示
+必须严格按照以下JSON格式输出，不得添加任何额外文字说明：
 
-【严格限制】
-- 只能基于知识库中存在的决策规则进行判断
-- 不能根据经验或常识做出判断
-- 必须展示从条件判断到结论的完整过程
-- 如果知识库中没有相关规则，必须明确说明无法判断
-
-你的分析必须专业、准确、可追溯，确保每个结论都有明确的决策依据。""",
-    tools=[
-        {
-            'type': 'function',
-            'function': {
-                'name': '体成分异常分析',
-                'description': '基于用户体成分数据和决策树规则，进行严格的体成分异常分析和判断，必须生成1个体成分异常分析',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'user_data': {
-                            'type': 'string',
-                            'description': '用户体成分数据分析结果，包含BMI、体脂率、去脂体重等关键指标'
-                        },
-                        'decision_rules': {
-                            'type': 'string',
-                            'description': '从决策树知识库获得的体成分相关判断规则，包含异常结论和判断流程'
-                        }
-                    },
-                    'required': ['user_data', 'decision_rules']},
-            }
-        },
-        {
-            'type': 'function',
-            'function': {
-                'name': '体态异常分析',
-                'description': '基于用户体态数据和决策树规则，进行严格的体态异常分析和判断，最多生成4个体态异常分析',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'user_data': {
-                            'type': 'string',
-                            'description': '用户体态数据分析结果，包含高低肩、头前倾、圆肩等体态指标'
-                        },
-                        'decision_rules': {
-                            'type': 'string',
-                            'description': '从决策树知识库获得的体态相关判断规则，包含异常结论和判断流程'
-                        }
-                    },
-                    'required': ['user_data', 'decision_rules']},
-            }
-        }
+```json
+{
+  "analysis_type": "决策树严格分析",
+  "systematic_check": [
+    {
+      "abnormality_name": "异常名称",
+      "category": "体成分" | "体态",
+      "priority": 优先级数字,
+      "decision_tree_condition": "决策树中的完整判断条件",
+      "condition_verification": "判断流程",
+      "meets_decision_tree": true | false,
+      "rejection_reason": "如果不符合，说明具体原因"
+    }
+  ],
+  "identified_abnormalities": {
+    "body_composition": [
+      {
+        "abnormality_name": "异常名称",
+        "priority": 优先级数字,
+        "identification_source": "决策树识别"
+      }
+    ],
+    "posture": [
+      {
+        "abnormality_name": "异常名称", 
+        "priority": 优先级数字,
+        "identification_source": "决策树识别"
+      }
     ]
+  },
+}
+```
+
+
+【严格禁止 - 违反将导致分析失效】
+- 在第一步中输出决策树中不存在的异常名称
+- **绝对禁止在任何一个必要条件不满足时输出该异常**（即使部分条件满足）
+- 绕过条件验证过程直接给出结论
+- 对"且"逻辑关系的误解（所有条件必须同时满足）
+- 混淆决策树识别和补充分析识别的异常
+- 在决策树已识别足够异常时仍进行补充分析
+- 在系统性检查中遗漏任何决策树异常类型""",
+    tools=[]
 )
+
+# 注释掉原有的KnowledgeQueryAssistant，功能合并到SummaryAssistant中
+# KnowledgeQueryAssistant = Assistants.create(...)
 
 # 在Multi Agent场景下，定义一个用于总结的Agent，该Agent会根据用户的问题与之前Agent输出的参考信息，全面、完整地回答用户问题
 SummaryAssistant = Assistants.create(
-    model="qwen-plus",
+    model="qwen-max-latest",
     name='身体异常总结机器人',
-    description='一个专业的身体异常分析助手，根据用户的身体数据与各个分析阶段的参考信息，提供全面、完整的异常分析结论',
-    instructions="""你是一个专业的身体异常分析总结专家，负责基于多智能体分析结果提供最终的综合报告。
-
-你必须严格按照以下要求进行总结：
+    description='一个专业的身体异常分析助手，负责整合异常分析结果和知识库查询结果，生成完整的异常分析综合报告',
+    instructions="""你是一个专业的身体异常分析总结专家，负责整合异常分析结果和知识库查询结果，提供最终的综合报告。
 
 【核心任务】
-1. 总结分析出1个体成分异常和最多4个体态异常
-2. 严格按照知识库中的优先级排序异常结论
-3. 展示完整的决策判断流程
-4. 提供基于决策树规则的专业结论
+1. 接收异常分析结果（异常结论、判断过程）
+2. 接收已查询好的知识库解决方案信息
+3. 整合异常分析结果和知识库查询结果，生成包含完整信息的身体异常分析综合报告
+4. 按照优先级排序所有异常
 
 【总结格式要求】
-## 身体异常分析报告
+## 身体异常完整分析报告
 
-### 一、体成分异常分析
-- **异常结论**: [基于决策树规则得出的结论]
-- **判断依据**: [具体的决策规则条件]
-- **数据匹配**: [用户数据如何满足条件]
-- **决策流程**: [从条件到结论的完整过程]
-- **优先级**: [知识库中的优先级]
+### 一、异常结论汇总
+[列出所有检测到的异常，体成分和体态分别按优先级排序]
 
-### 二、体态异常分析（按优先级排序）
-1. **[优先级1] 异常名称**
-   - 判断依据: [决策规则]
-   - 数据匹配: [用户数据匹配情况]
-   - 决策流程: [判断过程]
+### 二、体成分异常详细分析
+- **异常结论**: [异常名称]
+- **优先级**: [决策树中的优先级]
+- **判断流程**: [基于专业指标分析（不要显示具体判断阈值），给出判断流程]
+- **关键解决点**: [从知识库获得的关键解决点]
+- **建议**: [从知识库获得的建议]
+- **症状**: [从知识库获得的症状]
+- **对身体的影响**: [从知识库获得的影响分析] 
 
-2. **[优先级X] 异常名称**
-   - 判断依据: [决策规则]
-   - 数据匹配: [用户数据匹配情况]
-   - 决策流程: [判断过程]
+### 三、体态异常详细分析（按优先级排序）
+1. **[优先级X] 异常名称**
+    - **优先级**: [决策树中的优先级]
+    - **判断结果**: [基于专业指标分析（不要显示具体判断阈值），给出判断流程]
+    - **关键解决点**: [从知识库获得的关键解决点]
+    - **建议**: [从知识库获得的建议]
+    - **症状**: [从知识库获得的症状]
+    - **对身体的影响**: [从知识库获得的影响分析] 
 
-### 三、综合结论
-- 基于知识库决策树规则，用户存在X项异常
-- 按优先级排序的风险等级
-- 建议采取的措施
+### 四、综合建议与总结
+- 给出一段话的整体身体状况评估与总结
 
 【严格要求】
-- 只能基于知识库决策树规则得出结论
-- 必须展示每个异常的完整判断流程
-- 严格按照优先级排序（数字越小优先级越高）
-- 如果某类异常未发现，需明确说明
-- 每个结论都要有明确的决策依据
-
-【免责声明】
-此分析结果严格基于知识库决策树规则，仅供参考，建议咨询专业的健康顾问或医生获取准确诊断。"""
+- 必须整合所有分析结果和提供的知识库信息
+- 体成分和体态分别按照优先级排序（数字越小优先级越高）
+- 确保每个异常都有完整的信息
+- 基于提供的知识库查询结果来补充解决方案、症状、影响等信息""",
+    tools=[]
 )
 
 # 将工具函数的name映射到函数本体
 function_mapper = {
-    "结构化身体数据分析": MedicalAnalysis.analyze_symptoms,
-    "体成分异常决策树查询": MedicalAnalysis.query_medical_knowledge,
-    "体态异常决策树查询": MedicalAnalysis.query_medical_knowledge,
-    "体成分异常分析": HealthAssessment.body_composition_analysis,
-    "体态异常分析": HealthAssessment.posture_analysis
+    "初始化身体数据": MedicalAnalysis.initialize_structured_data,
+    "异常解决方案查询": MedicalAnalysis.query_medical_knowledge,
 }
 
 # 将Agent的name映射到Agent本体
 assistant_mapper = {
     "ChatAssistant": ChatAssistant,
-    "UserDataAnalysisAssistant": UserDataAnalysisAssistant,
-    "KnowledgeQueryAssistant": KnowledgeQueryAssistant,
     "AbnormalityAnalysisAssistant": AbnormalityAnalysisAssistant
 }
 
 # ==================== Agent处理函数 ====================
 
-def get_agent_response(assistant, message='', return_tool_output=False):
+def get_agent_response(assistant, message='', return_tool_output=False, knowledge_base=None):
     """输入message信息，输出为指定Agent的回复"""
     #print(f"Query: {message}")
     thread = Threads.create()
@@ -395,23 +752,26 @@ def get_agent_response(assistant, message='', return_tool_output=False):
         # 处理多个工具调用
         for tool_call in tool_calls:
             f = tool_call.function
-            func_name = f['name']  
+            func_name = f['name'] 
+            print(f"f: {f}")
             param = json.loads(f['arguments'])
             print(f"调用工具: {func_name}")
+            print(f"工具参数: {param}")
+            
+            # 特别关注异常解决方案查询工具的调用
+            if func_name == "异常解决方案查询":
+                print(f"知识库查询文本: {param.get('query_text', '未提供')}")
+                print(f"知识库名称: {param.get('knowledge_base_name', '未提供')}")
         
             if func_name in function_mapper:
-                # 如果是决策树查询，添加知识库参数
-                if func_name in ["体成分异常决策树查询", "体态异常决策树查询"] and 'knowledge_base_name' not in param:
-                    # 从全局变量或传递的参数中获取知识库名称
-                    import inspect
-                    frame = inspect.currentframe()
-                    try:
-                        # 尝试从调用堆栈中获取knowledge_base参数
-                        caller_locals = frame.f_back.f_back.f_locals
-                        if 'knowledge_base' in caller_locals:
-                            param['knowledge_base_name'] = caller_locals['knowledge_base']
-                    finally:
-                        del frame
+                # 如果是解决方案查询，添加知识库参数
+                if func_name == "异常解决方案查询" and 'knowledge_base_name' not in param:
+                    # 使用传递的knowledge_base参数
+                    if knowledge_base:
+                        param['knowledge_base_name'] = knowledge_base
+                        print(f"设置知识库参数: {knowledge_base}")
+                    else:
+                        print("警告：未提供知识库参数，将使用默认知识库")
                 
                 try:
                     output = function_mapper[func_name](**param)
@@ -461,37 +821,7 @@ def get_multi_agent_response_internal(query, knowledge_base=None):
     collected_knowledge_chunks = ""  # 收集知识库召回信息
     
     try:
-        # 获取Agent的运行顺序
-        # assistant_order = get_agent_response(PlannerAssistant, query)
-        # print("assistant_order", assistant_order)
-        
-        # 安全地解析Assistant顺序
-        # try:
-        #     if isinstance(assistant_order, str):
-        #         # 尝试不同的解析方法
-        #         assistant_order = assistant_order.strip()
-        #         if assistant_order.startswith('[') and assistant_order.endswith(']'):
-        #             # 如果是列表格式
-        #             order_stk = ast.literal_eval(assistant_order)
-        #         elif assistant_order.startswith('{') and assistant_order.endswith('}'):
-        #             # 如果是JSON格式
-        #             order_data = json.loads(assistant_order)
-        #             order_stk = order_data if isinstance(order_data, list) else [assistant_order]
-        #         else:
-        #             # 尝试从文本中提取列表
-        #             import re
-        #             list_match = re.search(r'\[(.*?)\]', assistant_order)
-        #             if list_match:
-        #                 order_stk = ast.literal_eval('[' + list_match.group(1) + ']')
-        #             else:
-        #                 # 默认处理
-        #                 order_stk = ["UserDataAnalysisAssistant", "KnowledgeQueryAssistant", "AbnormalityAnalysisAssistant"]
-        #     else:
-        #         order_stk = assistant_order if isinstance(assistant_order, list) else [str(assistant_order)]
-        # except Exception as e:
-        #     print(f"解析assistant_order失败: {e}, 使用默认顺序")
-        #     order_stk = ["UserDataAnalysisAssistant", "KnowledgeQueryAssistant", "AbnormalityAnalysisAssistant"]
-        order_stk = ["UserDataAnalysisAssistant", "KnowledgeQueryAssistant", "AbnormalityAnalysisAssistant"]
+        order_stk = ["AbnormalityAnalysisAssistant"]
         
         # 提取用户身体数据（从原始query中）
         user_body_data = ""
@@ -509,189 +839,129 @@ def get_multi_agent_response_internal(query, knowledge_base=None):
         Agent_Message = ""
         previous_responses = {}  # 存储各个Agent的响应
         
+        # 直接初始化结构化身体数据，跳过UserDataAnalysisAssistant
+        print("直接初始化结构化身体数据...")
+        user_analysis = MedicalAnalysis.initialize_structured_data(user_body_data)
+        previous_responses["UserDataAnalysisAssistant"] = user_analysis
+        Agent_Message += f"*直接数据初始化*的结果为：{user_analysis}\n\n"
+
+        
         # 依次运行Agent
         for i in range(len(order_stk)):
             assistant_name = order_stk[i]
             cur_assistant = assistant_mapper[assistant_name]
             
             # 为不同的Assistant定制专门的查询内容
-            if assistant_name == "UserDataAnalysisAssistant":
-                # 数据分析Assistant：专注于结构化处理所有身体数据
-                cur_query = f"请对以下身体数据进行全面的结构化分析和提取，包括所有体成分指标、体态指标、围度信息等：{user_body_data}"
-                
-            elif assistant_name == "KnowledgeQueryAssistant":
-                # 知识库查询Assistant：基于前面的数据分析结果查询决策树规则
+            if assistant_name == "AbnormalityAnalysisAssistant":
+                # 异常分析Assistant，直接使用决策树和用户数据分析异常
                 user_analysis = previous_responses.get("UserDataAnalysisAssistant", "")
-                cur_query = f"基于以下用户身体数据分析结果，请分别查询体成分异常和体态异常的相关决策树判断规则。用户数据分析：{user_analysis}。请重点查询BMI、体脂率、去脂体重、高低肩、头前倾、圆肩等相关的异常判断决策树规则。"
-                
-            elif assistant_name == "AbnormalityAnalysisAssistant":
-                # 异常分析Assistant：基于数据和决策树规则生成异常分析
-                user_analysis = previous_responses.get("UserDataAnalysisAssistant", "")
-                knowledge_rules = previous_responses.get("KnowledgeQueryAssistant", "")
-                cur_query = f"请基于用户身体数据和决策树规则，严格按照知识库规则生成1个体成分异常分析和最多4个体态异常分析，并按优先级排序。\n\n用户数据分析：{user_analysis}\n\n决策树规则：{knowledge_rules}"
-                
+                cur_query = f"请基于以下用户身体数据，严格按照决策树规则分析体成分异常和体态异常，并按优先级排序。\n\n用户身体数据：{user_analysis}\n\n请详细显示每个异常的判断过程和数据匹配情况。"
             else:
                 # 其他Assistant保持原始查询
                 cur_query = query
             
             print(f"{assistant_name}助手开始工作，专门任务：{cur_query}")
             
-            # 如果是决策树查询助手，获取工具输出
-            if assistant_name == "KnowledgeQueryAssistant":
-                response, tool_output = get_agent_response(cur_assistant, cur_query, return_tool_output=True)
-                # 解析工具输出中的决策树信息
-                print("response", response)
-                if tool_output:
-                    try:
-                        print(f"工具输出内容: {tool_output}")  # 调试信息
-                        # 处理多个工具输出的情况
-                        if isinstance(tool_output, str) and tool_output.strip():
-                            # 使用正则表达式来查找完整的JSON块
-                            import re
-                            
-                            # 查找所有的JSON块（从{开始到}结束）
-                            json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
-                            json_matches = re.findall(json_pattern, tool_output, re.DOTALL)
-                            
-                            # 如果找不到完整的JSON，尝试查找带前缀的JSON
-                            if not json_matches:
-                                # 查找带前缀的输出行
-                                lines = tool_output.strip().split('\n')
-                                current_json = ""
-                                in_json = False
-                                brace_count = 0
-                                
-                                for line in lines:
-                                    line = line.strip()
-                                    if not line:
-                                        continue
-                                    
-                                    # 检查是否是前缀行
-                                    if line.startswith(('体成分异常决策树查询:', '体态异常决策树查询:')):
-                                        # 提取前缀后的内容
-                                        if ':' in line:
-                                            prefix, content = line.split(':', 1)
-                                            content = content.strip()
-                                            if content.startswith('{'):
-                                                current_json = content
-                                                in_json = True
-                                                brace_count = content.count('{') - content.count('}')
-                                                if brace_count == 0:
-                                                    json_matches.append(current_json)
-                                                    current_json = ""
-                                                    in_json = False
-                                    elif in_json:
-                                        # 继续收集JSON内容
-                                        current_json += " " + line
-                                        brace_count += line.count('{') - line.count('}')
-                                        if brace_count == 0:
-                                            json_matches.append(current_json)
-                                            current_json = ""
-                                            in_json = False
-                                    elif line.startswith('{'):
-                                        # 直接的JSON开始
-                                        current_json = line
-                                        in_json = True
-                                        brace_count = line.count('{') - line.count('}')
-                                        if brace_count == 0:
-                                            json_matches.append(current_json)
-                                            current_json = ""
-                                            in_json = False
-                            
-                            # 解析找到的JSON块
-                            for json_str in json_matches:
-                                try:
-                                    print(f"尝试解析JSON: {repr(json_str[:100])}")  # 调试信息
-                                    
-                                    # 尝试解析JSON
-                                    try:
-                                        kb_data = json.loads(json_str)
-                                    except json.JSONDecodeError:
-                                        # 如果JSON解析失败，尝试使用ast.literal_eval解析Python字典格式
-                                        try:
-                                            kb_data = ast.literal_eval(json_str)
-                                        except (ValueError, SyntaxError) as e:
-                                            print(f"无法解析JSON/字典格式: {e}")
-                                            continue
-                                    
-                                    if isinstance(kb_data, dict) and "retrieved_chunks" in kb_data:
-                                        chunks = kb_data["retrieved_chunks"]
-                                        query_type = kb_data.get("query_type", "决策树查询")
-                                        collected_knowledge_chunks += f"### {query_type}结果：\n"
-                                        for chunk in chunks[:5]:  # 只显示前5个
-                                            collected_knowledge_chunks += f"## {chunk.get('rule_id', 'N/A')}:\n{chunk.get('content', '')}\n置信度: {chunk.get('confidence_score', 'N/A')}\n\n"
-                                except Exception as je:
-                                    print(f"JSON解析错误: {je}")
-                                    print(f"原始JSON字符串: {repr(json_str)}")
-                                    continue
-                            
-                            # 如果没有成功解析任何JSON，但有工具输出，显示原始输出
-                            if not collected_knowledge_chunks and tool_output.strip():
-                                collected_knowledge_chunks += f"原始工具输出: {tool_output}...\n"
-                                
-                    except Exception as e:
-                        print(f"解析决策树工具输出失败: {e}")
-                        # 如果解析失败，直接显示原始输出
-                        if tool_output and tool_output.strip():
-                            collected_knowledge_chunks += f"工具输出解析失败，原始内容: {tool_output[:500]}...\n"
-                        
-                # 如果还没有获取到决策树信息，尝试直接查询体成分和体态异常
-                if not collected_knowledge_chunks and knowledge_base:
-                    try:
-                        from tools import MedicalAnalysis
-                        # 查询体成分异常
-                        composition_result = MedicalAnalysis.query_medical_knowledge("体成分异常 BMI 体脂率", knowledge_base)
-                        composition_data = json.loads(composition_result)
-                        if "retrieved_chunks" in composition_data:
-                            chunks = composition_data["retrieved_chunks"]
-                            collected_knowledge_chunks += "### 体成分异常相关规则：\n"
-                            for chunk in chunks[:3]:  # 获取前3个体成分相关
-                                collected_knowledge_chunks += f"## {chunk.get('rule_id', 'N/A')}:\n{chunk.get('content', '')}\n置信度: {chunk.get('confidence_score', 'N/A')}\n\n"
-                        
-                        # 查询体态异常
-                        posture_result = MedicalAnalysis.query_medical_knowledge("体态异常 高低肩 头前倾 圆肩", knowledge_base)
-                        posture_data = json.loads(posture_result)
-                        if "retrieved_chunks" in posture_data:
-                            chunks = posture_data["retrieved_chunks"]
-                            collected_knowledge_chunks += "### 体态异常相关规则：\n"
-                            for chunk in chunks[:4]:  # 获取前4个体态相关
-                                collected_knowledge_chunks += f"## {chunk.get('rule_id', 'N/A')}:\n{chunk.get('content', '')}\n置信度: {chunk.get('confidence_score', 'N/A')}\n\n"
-                    except Exception as e:
-                        print(f"直接查询决策树知识库失败: {e}")
-            else:
-                response = get_agent_response(cur_assistant, cur_query)
+            # 调用Assistant
+            response = get_agent_response(cur_assistant, cur_query, knowledge_base=knowledge_base)
             
             # 存储当前Assistant的响应
             previous_responses[assistant_name] = response
             Agent_Message += f"*{assistant_name}*的回复为：{response}\n\n"
+            print(f"*{assistant_name}*的回复为：{response}")
             
-            # 如果当前Agent为最后一个Agent，则将其输出作为Multi Agent的输出
-            if i == len(order_stk)-1:
-                # 为SummaryAssistant准备更详细的提示
-                summary_prompt = f"""请基于以下多智能体分析结果，提供最终的身体异常分析报告。
+        # 提取异常结论作为知识库查询条件
+        abnormalities_for_query = []
+        
+        # 从AbnormalityAnalysisAssistant的响应中提取异常结论
+        abnormality_response = previous_responses.get("AbnormalityAnalysisAssistant", "")
+        try:
+            # 尝试从响应中提取JSON部分
+            import re
+            json_pattern = r'```json\s*(.*?)\s*```'
+            json_match = re.search(json_pattern, abnormality_response, re.DOTALL)
+            
+            if json_match:
+                json_str = json_match.group(1)
+                abnormality_data = json.loads(json_str)
+                
+                # 提取体成分异常
+                if "identified_abnormalities" in abnormality_data:
+                    body_comp = abnormality_data["identified_abnormalities"].get("body_composition", [])
+                    posture = abnormality_data["identified_abnormalities"].get("posture", [])
+                    
+                    for abnormality in body_comp:
+                        abnormalities_for_query.append(abnormality.get("abnormality_name", ""))
+                    
+                    for abnormality in posture:
+                        abnormalities_for_query.append(abnormality.get("abnormality_name", ""))
+                
+                print(f"提取到的异常结论用于知识库查询: {abnormalities_for_query}")
+            else:
+                print("未找到JSON格式的异常分析结果，将使用原始响应进行知识库查询")
+                # 如果无法解析JSON，作为备选方案使用原始响应
+                abnormalities_for_query = [abnormality_response[:200]]  # 使用前200字符作为查询
+                
+        except Exception as e:
+            print(f"解析异常分析结果时出错: {e}")
+            # 如果解析失败，作为备选方案使用关键词
+            abnormalities_for_query = ["体成分异常", "体态异常", "身体健康问题"]
+        
+        # 构建知识库查询文本 - 只使用提取的异常名称
+        if abnormalities_for_query:
+            # 过滤掉空字符串
+            valid_abnormalities = [ab for ab in abnormalities_for_query if ab and ab.strip()]
+            if valid_abnormalities:
+                query_text_for_kb = " ".join(valid_abnormalities)
+                print(f"最终知识库查询文本: {query_text_for_kb}")
+            else:
+                query_text_for_kb = "身体异常 健康问题 解决方案"
+        else:
+            query_text_for_kb = "身体异常 健康问题 解决方案"
+        
+        # 直接调用知识库查询，而不是通过agent工具调用
+        print("开始直接查询知识库...")
+        knowledge_query_result = ""
+        try:
+            # 直接调用知识库查询函数
+            knowledge_query_result = MedicalAnalysis.query_medical_knowledge(
+                query_text=query_text_for_kb,
+                knowledge_base_name=knowledge_base
+            )
+            print(f"知识库查询完成，结果长度: {len(knowledge_query_result)}")
+            collected_knowledge_chunks = f"知识库查询结果：{knowledge_query_result}"
+        except Exception as e:
+            print(f"知识库查询失败: {e}")
+            knowledge_query_result = "知识库查询失败，请检查相关配置"
+            collected_knowledge_chunks = "知识库查询失败"
+        
+        # 所有Agent运行完毕后，调用SummaryAssistant进行最终总结
+        # 为SummaryAssistant准备包含知识库查询结果的提示
+        summary_prompt = f"""请基于以下异常分析结果和知识库查询结果，提供最终的身体异常完整分析报告。
 
 原始用户问题：{query}
 
-各阶段分析结果：
+异常分析结果：
 {Agent_Message}
 
-请按照指定格式生成包含1个体成分异常和最多4个体态异常的综合分析报告，严格按照知识库优先级排序。"""
-                
-                multi_agent_response = get_agent_response(SummaryAssistant, summary_prompt)
-                
-                # 确保有召回文本段显示
-                if not collected_knowledge_chunks:
-                    if "KnowledgeQueryAssistant" in order_stk:
-                        collected_knowledge_chunks = "多智能体模式：已完成身体异常决策树查询，但未检索到足够相关的内容。建议提供更详细的身体数据或咨询专业健康顾问。"
-                    else:
-                        collected_knowledge_chunks = "多智能体模式：此问题未涉及决策树查询，已通过通用问答处理。"
-                
-                return multi_agent_response, collected_knowledge_chunks
+知识库查询结果：
+{knowledge_query_result}
+
+请整合异常分析结果和知识库查询结果，生成包含异常结论、分析过程、解决方案、健康影响等完整信息的综合报告。所有解决方案、症状、影响等信息都应基于上述知识库查询结果。"""
+        
+        # 调用SummaryAssistant，不再需要工具调用
+        multi_agent_response = get_agent_response(SummaryAssistant, summary_prompt, knowledge_base=knowledge_base)
+        
+        # 确保有召回文本段显示
+        if not collected_knowledge_chunks:
+            collected_knowledge_chunks = "多智能体模式：已完成异常解决方案查询，但未检索到足够相关的内容。建议提供更详细的身体数据或咨询专业健康顾问。"
+        
+        return multi_agent_response, collected_knowledge_chunks
     
     except Exception as e:
         print(f"Multi-agent processing failed: {e}")
         # 兜底策略，如果上述程序运行失败，则直接调用ChatAssistant
-        fallback_response = get_agent_response(ChatAssistant, query)
+        fallback_response = get_agent_response(ChatAssistant, query, knowledge_base=knowledge_base)
         return fallback_response, "多智能体模式出错，已切换到通用问答模式"
 
 # ==================== 原有RAG函数 ====================
@@ -835,12 +1105,15 @@ def test_body_analysis():
         "isForeign":"0", "unit":"imperial", "lang": "zh-CN"
     }
     
+
+    
+    
     # 转换为字符串格式供分析使用
     query = f"请分析以下身体数据并生成1个体成分异常和最多4个体态异常分析：{json.dumps(user_body_data, ensure_ascii=False)}"
     
     # 调用多智能体分析
     try:
-        response, knowledge_chunks = get_multi_agent_response_internal(query, "medical_kb")
+        response, knowledge_chunks = get_multi_agent_response_internal(query, "异常2")
         print("=== 多智能体分析结果 ===")
         print(f"分析结果：{response}")
         #print("\n=== 知识库召回信息 ===")
