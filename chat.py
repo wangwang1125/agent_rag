@@ -200,6 +200,7 @@ tichengfen_tiwei_decision_tree = """
 
 # 体态异常决策树（有骨盆）
 posture_decision_tree = """
+{
     "体态": {
         "可能骨盆旋移": {
             "优先级": 3,
@@ -344,13 +345,14 @@ posture_decision_tree = """
         }
     }
         
-        
+}
         
 
 """
 
 # 体态异常决策树（无骨盆）
 posture_decision_tree_no_pelvis = """
+{
     "体态": {
         "高低肩是由头侧歪诱发的": {
             "优先级": 5,
@@ -567,8 +569,9 @@ posture_decision_tree_no_pelvis = """
             "异常判断流程": [
                 "存在腿型呈现D型，且D型腿中腿型角度不正常的腿短或躯干朝腿型角度不正常侧倾斜或正常腿侧足底重量 >短腿侧+2kg"
             ]
-        },
+        }
     }
+}
 """
 
 # ==================== AI助手配置定义 ====================
@@ -795,111 +798,6 @@ PostureAnalysisNoPelvisAssistant = {
 - 输出不符合条件的异常分析过程"""
 }
 
-# 在Multi Agent场景下，定义一个用于总结的Agent，该Agent会根据用户的问题与之前Agent输出的参考信息，全面、完整地回答用户问题
-SummaryAssistant = {
-    "model": "qwen-max-latest",
-    "name": '身体异常总结机器人',
-    "description": '一个专业的身体异常分析助手，负责整合三项异常分析结果和知识库查询结果，生成完整的异常分析综合报告',
-    "instructions": """你是一个专业的身体异常分析总结专家，负责整合三项异常分析结果和知识库查询结果，提供最终的JSON格式综合报告。
-
-【核心任务】
-1. 接收三项并发异常分析结果（体成分+体围、有骨盆体态、无骨盆体态异常结论、判断过程）
-2. 接收已查询好的知识库解决方案信息
-3. 整合异常分析结果和知识库查询结果，生成JSON格式的身体异常分析综合报告
-4. 按照优先级排序所有异常（数字越小优先级越高）
-5. 正确处理和显示异常的原始名称和具体化名称
-
-【异常名称处理说明】
-- **original_name**: 决策树中的原始异常名称（保持术语标准性）
-- **specific_name**: 根据实际身体数据具体化的异常名称（如左侧、右侧、具体症状等）
-- 在报告中主要使用specific_name，但在必要时也可标注original_name以便参考
-
-【输出格式要求 - 必须严格按照JSON格式输出】
-必须严格按照以下JSON格式输出，不得添加任何额外文字说明：
-
-```json
-{
-  "report_type": "身体异常完整分析报告",
-  "analysis_summary": {
-    "total_abnormalities_found": 总异常数量,
-    "body_composition_count": 体成分异常数量,
-    "girth_count": 体围异常数量,
-    "posture_count": 体态异常数量,
-    "highest_priority_level": 最高优先级数字
-  },
-     "abnormalities_by_priority": [
-     {
-       "category": "体成分/体围/体态",
-       "abnormality_name": "具体化异常名称",
-       "original_decision_tree_name": "决策树中的原始异常名称（如有）",
-       "priority": 优先级数字,
-       "analysis_process": "判断流程和数据匹配情况",
-       "key_solutions": "从知识库获得的关键解决点",
-       "recommendations": "从知识库获得的建议",
-       "symptoms": "从知识库获得的症状",
-       "health_impact": "从知识库获得的对身体的影响"
-     }
-   ],
-   "category_details": {
-     "body_composition": [
-       {
-         "abnormality_name": "异常名称",
-         "priority": 优先级,
-         "analysis_process": "判断过程",
-         "key_solutions": "解决方案",
-         "recommendations": "建议",
-         "symptoms": "症状",
-         "health_impact": "健康影响"
-       }
-     ],
-     "girth": [
-       {
-         "abnormality_name": "异常名称",
-         "priority": 优先级,
-         "analysis_process": "判断过程",
-         "key_solutions": "解决方案",
-         "recommendations": "建议",
-         "symptoms": "症状",
-         "health_impact": "健康影响"
-       }
-     ],
-     "posture": [
-       {
-         "abnormality_name": "具体化异常名称",
-         "original_decision_tree_name": "决策树原始名称",
-         "priority": 优先级,
-         "analysis_process": "判断过程",
-         "key_solutions": "解决方案",
-         "recommendations": "建议",
-         "symptoms": "症状",
-         "health_impact": "健康影响"
-       }
-     ]
-   },
-  "overall_assessment": "整体身体状况评估与总结"
-}
-```
-
-【重要输出原则】
-1. **严格JSON格式**：输出必须是有效的JSON格式，不得包含任何markdown或其他格式
-2. **优先级排序**：abnormalities_by_priority数组中的异常必须按优先级从高到低排序（数字越小优先级越高）
-3. **完整信息整合**：必须整合所有三项并发分析结果和知识库查询信息
-4. **名称字段处理**：
-   - 体成分/体围异常：使用abnormality_name字段
-   - 体态异常：使用abnormality_name（具体化）和original_decision_tree_name（原始）字段
-5. **分类详情**：category_details中也要按优先级排序
-6. **知识库信息**：所有解决方案、症状、影响等信息都必须基于提供的知识库查询结果
-
-【严格要求】
-- 必须整合所有三项并发分析结果和提供的知识库信息
-- 体成分、体围和体态异常都要按照优先级排序（数字越小优先级越高）
-- 体态异常包含了有骨盆和无骨盆两个分析的综合结果
-- 使用abnormality_name作为主要显示名称（已具体化），对于体态异常还要保留original_decision_tree_name
-- 确保每个异常都有完整的信息
-- 基于提供的知识库查询结果来补充解决方案、症状、影响等信息
-- 如果某个类别没有异常，则该类别的数组为空"""
-}
-
 # 将工具函数的name映射到函数本体
 function_mapper = {
     "初始化身体数据": MedicalAnalysis.initialize_structured_data,
@@ -911,8 +809,7 @@ assistant_mapper = {
     "ChatAssistant": ChatAssistant,
     "BodyCompositionAnalysisAssistant": BodyCompositionAnalysisAssistant,
     "PostureAnalysisAssistant": PostureAnalysisAssistant,
-    "PostureAnalysisNoPelvisAssistant": PostureAnalysisNoPelvisAssistant,
-    "SummaryAssistant": SummaryAssistant
+    "PostureAnalysisNoPelvisAssistant": PostureAnalysisNoPelvisAssistant
 }
 
 # ==================== Agent处理函数 ====================
@@ -1293,227 +1190,6 @@ def get_multi_agent_response_internal(query, knowledge_base=None):
         print(f"Multi-agent processing failed: {e}")
 
 
-# ==================== 原有RAG函数 ====================
-
-def get_model_response(multi_modal_input,history,model,temperature,max_tokens,history_round,db_name,similarity_threshold,chunk_cnt):
-    # prompt = multi_modal_input['text']
-    prompt = history[-1][0]
-    tmp_files = multi_modal_input['files']
-    if os.path.exists(os.path.join("File",TMP_NAME)):
-        db_name = TMP_NAME
-    else:
-        if tmp_files:
-            create_tmp_kb(tmp_files)
-            db_name = TMP_NAME
-    # 获取index
-    print(f"prompt:{prompt},tmp_files:{tmp_files},db_name:{db_name}")
-    try:
-        dashscope_rerank = DashScopeRerank(
-            top_n=chunk_cnt,
-            return_documents=True,
-            api_key="sk-51d30a5436ca433b8ff81e624a23dcac"
-        )
-        storage_context = StorageContext.from_defaults(
-            persist_dir=os.path.join(DB_PATH,db_name)
-        )
-        index = load_index_from_storage(storage_context)
-        print("index获取完成")
-        retriever_engine = index.as_retriever(
-            similarity_top_k=20,
-        )
-        # 获取chunk
-        retrieve_chunk = retriever_engine.retrieve(prompt)
-        print(f"原始chunk为：{retrieve_chunk}")
-        try:
-            results = dashscope_rerank.postprocess_nodes(retrieve_chunk, query_str=prompt)
-            print(f"rerank成功，重排后的chunk为：{results}")
-        except:
-            results = retrieve_chunk[:chunk_cnt]
-            print(f"rerank失败，chunk为：{results}")
-        chunk_text = ""
-        chunk_show = ""
-        for i in range(len(results)):
-            if results[i].score >= similarity_threshold:
-                chunk_text = chunk_text + f"## {i+1}:\n {results[i].text}\n"
-                chunk_show = chunk_show + f"## {i+1}:\n {results[i].text}\nscore: {round(results[i].score,2)}\n"
-        print(f"已获取chunk：{chunk_text}")
-        prompt_template = f"请参考以下内容：{chunk_text}，以合适的语气回答用户的问题：{prompt}。如果参考内容中有图片链接也请直接返回。"
-    except Exception as e:
-        print(f"异常信息：{e}")
-        prompt_template = prompt
-        chunk_show = ""
-    history[-1][-1] = ""
-    client = OpenAI(
-        api_key="sk-51d30a5436ca433b8ff81e624a23dcac",
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-    )                
-    system_message = {'role': 'system', 'content': 'You are a helpful assistant.'}
-    messages = []
-    history_round = min(len(history),history_round)
-    for i in range(history_round):
-        messages.append({'role': 'user', 'content': history[-history_round+i][0]})
-        messages.append({'role': 'assistant', 'content': history[-history_round+i][1]})
-    messages.append({'role': 'user', 'content': prompt_template})
-    messages = [system_message] + messages
-    completion = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        stream=True
-        )
-    assistant_response = ""
-    for chunk in completion:
-        assistant_response += chunk.choices[0].delta.content
-        history[-1][-1] = assistant_response
-        yield history,chunk_show
-
-# ==================== 统一响应函数 ====================
-
-def get_multi_agent_response_stream(query, knowledge_base=None):
-    """获得Multi Agent的流式回复 - 使用并发异常分析"""
-    if len(query) == 0:
-        yield "请输入您的身体数据或问题"
-        return
-    
-    collected_knowledge_chunks = ""  # 收集知识库召回信息
-    
-    try:
-        # 提取用户身体数据（从原始query中）
-        user_body_data = ""
-        if "请分析以下身体数据" in query:
-            # 提取JSON数据部分
-            import re
-            json_match = re.search(r'：(\{.*\})$', query)
-            if json_match:
-                user_body_data = json_match.group(1)
-            else:
-                user_body_data = query
-        else:
-            user_body_data = query
-        
-        Agent_Message = ""
-        
-        # 直接初始化结构化身体数据
-        yield "正在初始化身体数据...\n"
-        user_analysis = MedicalAnalysis.initialize_structured_data(user_body_data)
-        Agent_Message += f"*直接数据初始化*的结果为：{user_analysis}\n\n"
-        
-        # 执行并发分析
-        analysis_results = analyze_abnormalities_concurrently(user_analysis, knowledge_base)
-        
-        # 合并分析结果
-        yield "合并并发分析结果...\n"
-        merged_result, abnormalities_for_query = merge_abnormality_results(analysis_results)
-        
-        # 生成合并后的JSON响应
-        merged_json_response = json.dumps(merged_result, ensure_ascii=False, indent=2)
-        Agent_Message += f"*并发异常分析*的合并结果为：\n```json\n{merged_json_response}\n```\n\n"
-        
-        # 构建知识库查询文本
-        if abnormalities_for_query:
-            valid_abnormalities = [ab for ab in abnormalities_for_query if ab and ab.strip()]
-            if valid_abnormalities:
-                query_text_for_kb = " ".join(valid_abnormalities)
-            else:
-                query_text_for_kb = "身体异常 健康问题 解决方案"
-        else:
-            query_text_for_kb = "身体异常 健康问题 解决方案"
-        
-        # 直接调用知识库查询
-        yield "正在查询相关知识库信息...\n"
-        knowledge_query_result = ""
-        try:
-            knowledge_query_result = MedicalAnalysis.query_medical_knowledge(
-                query_text=query_text_for_kb,
-                knowledge_base_name=knowledge_base
-            )
-            collected_knowledge_chunks = f"知识库查询结果：{knowledge_query_result}"
-        except Exception as e:
-            print(f"知识库查询失败: {e}")
-            knowledge_query_result = "知识库查询失败，请检查相关配置"
-            collected_knowledge_chunks = "知识库查询失败"
-        
-        # 准备总结提示
-        summary_prompt = f"""请基于以下异常分析结果和知识库查询结果，提供最终的身体异常完整分析报告。
-
-原始用户问题：{query}
-
-异常分析结果：
-{Agent_Message}
-
-知识库查询结果：
-{knowledge_query_result}
-
-请整合异常分析结果和知识库查询结果，生成包含异常结论、分析过程、解决方案、健康影响等完整信息的综合报告。所有解决方案、症状、影响等信息都应基于上述知识库查询结果。"""
-        
-        # 调用SummaryAssistant进行流式输出
-        yield "正在生成最终分析报告...\n\n"
-        summary_config = assistant_mapper["SummaryAssistant"]
-        
-        # 流式输出最终结果
-        final_response = ""
-        for chunk in get_agent_response_stream(summary_config, summary_prompt, knowledge_base=knowledge_base):
-            final_response += chunk
-            yield chunk
-        
-        # 保存最终综合分析报告
-        try:
-            from datetime import datetime
-            import os
-            
-            output_dir = "analysis_outputs"
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-                
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            final_report_filename = f"{output_dir}/final_analysis_report_stream_{timestamp}.txt"
-            
-            with open(final_report_filename, 'w', encoding='utf-8') as f:
-                f.write(f"身体异常完整分析报告（流式版本）\n")
-                f.write(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write("="*60 + "\n\n")
-                f.write(f"原始用户问题:\n{query}\n\n")
-                f.write("="*60 + "\n\n")
-                f.write(f"并发异常分析过程:\n{Agent_Message}\n\n")
-                f.write("="*60 + "\n\n")
-                f.write(f"知识库查询结果:\n{knowledge_query_result}\n\n")
-                f.write("="*60 + "\n\n")
-                f.write(f"最终综合分析报告:\n{final_response}\n")
-            
-            print(f"\n流式版本最终综合分析报告已保存到: {final_report_filename}")
-        except Exception as e:
-            print(f"保存流式版本最终综合分析报告失败: {e}")
-            
-    except Exception as e:
-        print(f"Multi-agent processing failed: {e}")
-        yield f"多智能体模式出错: {str(e)}\n"
-        # 兜底策略
-        chat_config = assistant_mapper["ChatAssistant"]
-        for chunk in get_agent_response_stream(chat_config, query, knowledge_base=knowledge_base):
-            yield chunk
-
-def get_unified_response(multi_modal_input, history, mode, model, temperature, max_tokens, history_round, knowledge_base, similarity_threshold, chunk_cnt):
-    """统一的响应函数，支持RAG和多智能体两种模式"""
-    prompt = history[-1][0] if history else ""
-    
-    if mode == "multi_agent":
-        # 多智能体模式 - 流式输出
-        try:
-            history[-1][-1] = ""
-            full_response = ""
-            for chunk in get_multi_agent_response_stream(prompt, knowledge_base):
-                full_response += chunk
-                history[-1][-1] = full_response
-                yield history, "多智能体模式：已完成异常解决方案查询"
-        except Exception as e:
-            print(f"多智能体模式失败，降级到RAG模式: {e}")
-            # 降级到RAG模式
-            yield from get_model_response(multi_modal_input, history, model, temperature, max_tokens, history_round, knowledge_base, similarity_threshold, chunk_cnt)
-    else:
-        # RAG模式
-        yield from get_model_response(multi_modal_input, history, model, temperature, max_tokens, history_round, knowledge_base, similarity_threshold, chunk_cnt)
-        
 def test_body_analysis():
     """测试身体异常分析的三项多智能体流程 - 体成分+体围、有骨盆体态、无骨盆体态：优先输出符合决策树的异常"""
     # 示例用户数据
