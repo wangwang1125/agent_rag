@@ -597,7 +597,7 @@ BodyCompositionAnalysisAssistant = {
 3. **逻辑关系严格执行**：
    - "且"关系：所有条件必须同时满足，任何一个条件不满足则整个异常判断为假
    - "或"关系：至少一个条件满足即可
-   - 条件组合：严格按照括号和逻辑连接词执行
+   - 异常判断流程中可能有多条路径，需要某一条路径完全满足，才能输出该异常
 4. **严格验证原则**：如果任何一个必要条件不满足，绝对不能输出该异常，即使其他条件满足
 5. **确保完整性**：确保对所有异常都进行了判断，不要遗漏
 
@@ -660,7 +660,7 @@ PostureAnalysisAssistant = {
 3. **逻辑关系严格执行**：
    - "且"关系：所有条件必须同时满足，任何一个条件不满足则整个异常判断为假
    - "或"关系：至少一个条件满足即可
-   - 条件组合：严格按照括号和逻辑连接词执行
+   - 异常判断流程中可能有多条路径，需要某一条路径完全满足，才能输出该异常
 4. **严格验证原则**：如果任何一个必要条件不满足，绝对不能输出该异常，即使其他条件满足
 5. **确保完整性**：确保对所有异常都进行了判断，不要遗漏
 
@@ -734,7 +734,7 @@ PostureAnalysisNoPelvisAssistant = {
 3. **逻辑关系严格执行**：
    - "且"关系：所有条件必须同时满足，任何一个条件不满足则整个异常判断为假
    - "或"关系：至少一个条件满足即可
-   - 条件组合：严格按括号和逻辑连接词执行
+   - 异常判断流程中可能有多条路径，需要某一条路径完全满足，才能输出该异常
 4. **严格验证原则**：如果任何一个必要条件不满足，绝对不能输出该异常，即使其他条件满足
 5. **确保完整性**：确保对所有异常都进行了判断，不要遗漏
 
@@ -1040,7 +1040,7 @@ def analyze_abnormalities_concurrently(user_body_data, knowledge_base=None):
         
         # 等待体成分+体围分析结果
         try:
-            analysis_type, response = future_body_comp.result(timeout=120)
+            analysis_type, response = future_body_comp.result(timeout=180)
             results[analysis_type] = response
             print(f"\n{analysis_type} 分析完成，响应长度: {len(response)}")
         except Exception as e:
@@ -1049,7 +1049,7 @@ def analyze_abnormalities_concurrently(user_body_data, knowledge_base=None):
         
         # 等待有骨盆体态分析结果
         try:
-            analysis_type, response = future_posture_with_pelvis.result(timeout=120)
+            analysis_type, response = future_posture_with_pelvis.result(timeout=280)
             results[analysis_type] = response
             print(f"\n{analysis_type} 分析完成，响应长度: {len(response)}")
         except Exception as e:
@@ -1058,7 +1058,7 @@ def analyze_abnormalities_concurrently(user_body_data, knowledge_base=None):
         
         # 等待无骨盆体态分析结果
         try:
-            analysis_type, response = future_posture_no_pelvis.result(timeout=120)
+            analysis_type, response = future_posture_no_pelvis.result(timeout=180)
             results[analysis_type] = response
             print(f"\n{analysis_type} 分析完成，响应长度: {len(response)}")
         except Exception as e:
@@ -1094,14 +1094,6 @@ def merge_abnormality_results(analysis_results):
             "body_composition": [],
             "girth": [], 
             "posture": []
-        },
-        "summary": {
-            "total_body_composition_checked": 0,
-            "total_girth_checked": 0,
-            "total_posture_with_pelvis_checked": 0,
-            "total_posture_no_pelvis_checked": 0,
-            "total_meets_criteria": 0,
-            "total_rejected": 0
         }
     }
     
@@ -1152,19 +1144,6 @@ def merge_abnormality_results(analysis_results):
                                 if abnormality_name:
                                     abnormalities_for_query.append(abnormality_name)
                 
-                # 合并统计信息
-                if "systematic_check_summary" in analysis_data:
-                    summary = analysis_data["systematic_check_summary"]
-                    if analysis_type == "BodyComposition":
-                        merged_result["summary"]["total_body_composition_checked"] = summary.get("total_checked", 0)
-                        merged_result["summary"]["total_girth_checked"] = summary.get("total_checked", 0)
-                    elif analysis_type == "PostureWithPelvis":
-                        merged_result["summary"]["total_posture_with_pelvis_checked"] = summary.get("total_checked", 0)
-                    elif analysis_type == "PostureNoPelvis":
-                        merged_result["summary"]["total_posture_no_pelvis_checked"] = summary.get("total_checked", 0)
-                    
-                    merged_result["summary"]["total_meets_criteria"] += int(summary.get("meets_criteria", 0))
-                    merged_result["summary"]["total_rejected"] += int(summary.get("rejected_count", 0))
                 
                 print(f"成功解析 {analysis_type} 的分析结果，已过滤为只包含meets_decision_tree=true的异常")
             else:
@@ -1290,12 +1269,10 @@ def get_multi_agent_response_internal(query, knowledge_base=None):
         else:
             user_body_data = query
         
-        Agent_Message = ""
         
         # 直接初始化结构化身体数据
         print("直接初始化结构化身体数据...")
         user_analysis = MedicalAnalysis.initialize_structured_data(user_body_data)
-        Agent_Message += f"*直接数据初始化*的结果为：{user_analysis}\n\n"
 
         # 并发执行异常分析
         
@@ -1308,107 +1285,13 @@ def get_multi_agent_response_internal(query, knowledge_base=None):
         
         # 生成合并后的JSON响应
         merged_json_response = json.dumps(merged_result, ensure_ascii=False, indent=2)
-        Agent_Message += f"*并发异常分析*的合并结果为：\n```json\n{merged_json_response}\n```\n\n"
+        print(f"*并发异常分析*的合并结果为：\n```json\n{merged_json_response}\n```\n\n")
         
-        print(f"并发分析完成，提取到的异常结论用于知识库查询: {abnormalities_for_query}")
         
-        # 构建知识库查询文本 - 只使用提取的异常名称
-        if abnormalities_for_query:
-            # 过滤掉空字符串
-            valid_abnormalities = [ab for ab in abnormalities_for_query if ab and ab.strip()]
-            if valid_abnormalities:
-                query_text_for_kb = " ".join(valid_abnormalities)
-                print(f"最终知识库查询文本: {query_text_for_kb}")
-            else:
-                query_text_for_kb = "身体异常 健康问题 解决方案"
-        else:
-            query_text_for_kb = "身体异常 健康问题 解决方案"
-        
-        # 直接调用知识库查询，而不是通过agent工具调用
-        print("开始直接查询知识库...")
-        knowledge_query_result = ""
-        try:
-            # 直接调用知识库查询函数
-            knowledge_query_result = MedicalAnalysis.query_medical_knowledge(
-                query_text=query_text_for_kb,
-                knowledge_base_name=knowledge_base
-            )
-            print(f"知识库查询完成，结果长度: {len(knowledge_query_result)}")
-            collected_knowledge_chunks = f"知识库查询结果：{knowledge_query_result}"
-        except Exception as e:
-            print(f"知识库查询失败: {e}")
-            knowledge_query_result = "知识库查询失败，请检查相关配置"
-            collected_knowledge_chunks = "知识库查询失败"
-        
-        # 所有助手运行完毕后，调用SummaryAssistant进行最终总结
-        # 为SummaryAssistant准备包含知识库查询结果的提示
-        summary_prompt = f"""请基于以下异常分析结果和知识库查询结果，提供最终的身体异常完整分析报告。
-
-原始用户问题：{query}
-
-异常分析结果：
-{Agent_Message}
-
-知识库查询结果：
-{knowledge_query_result}
-
-请整合异常分析结果和知识库查询结果，生成包含异常结论、分析过程、解决方案、健康影响等完整信息的综合报告。所有解决方案、症状、影响等信息都应基于上述知识库查询结果。"""
-        
-        # 调用SummaryAssistant - 流式输出，但收集完整响应
-        summary_config = assistant_mapper["SummaryAssistant"]
-        print(f"正在流式调用 {summary_config['name']}...")
-        multi_agent_response = ""
-        for chunk in get_agent_response_stream(summary_config, summary_prompt, knowledge_base=knowledge_base):
-            multi_agent_response += chunk
-            print(chunk, end='', flush=True)  # 实时显示流式输出
-        print()  # 换行
-        print(f"\nSummaryAssistant 完成回复，响应长度: {len(multi_agent_response)}")
-        
-        # 保存最终综合分析报告
-        try:
-            from datetime import datetime
-            import os
-            
-            output_dir = "analysis_outputs"
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-                
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            final_report_filename = f"{output_dir}/final_analysis_report_{timestamp}.txt"
-            
-            with open(final_report_filename, 'w', encoding='utf-8') as f:
-                f.write(f"身体异常完整分析报告\n")
-                f.write(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write("="*60 + "\n\n")
-                f.write(f"原始用户问题:\n{query}\n\n")
-                f.write("="*60 + "\n\n")
-                f.write(f"并发异常分析过程:\n{Agent_Message}\n\n")
-                f.write("="*60 + "\n\n")
-                f.write(f"知识库查询结果:\n{knowledge_query_result}\n\n")
-                f.write("="*60 + "\n\n")
-                f.write(f"最终综合分析报告:\n{multi_agent_response}\n")
-            
-            print(f"最终综合分析报告已保存到: {final_report_filename}")
-        except Exception as e:
-            print(f"保存最终综合分析报告失败: {e}")
-        
-        # 确保有召回文本段显示
-        if not collected_knowledge_chunks:
-            collected_knowledge_chunks = "多智能体模式：已完成异常解决方案查询，但未检索到足够相关的内容。建议提供更详细的身体数据或咨询专业健康顾问。"
-        
-        return multi_agent_response, collected_knowledge_chunks
     
     except Exception as e:
         print(f"Multi-agent processing failed: {e}")
-        # 兜底策略，如果上述程序运行失败，则直接调用ChatAssistant
-        chat_config = assistant_mapper["ChatAssistant"]
-        print(f"正在流式调用兜底助手 {chat_config['name']}...")
-        fallback_response = ""
-        for chunk in get_agent_response_stream(chat_config, query, knowledge_base=knowledge_base):
-            fallback_response += chunk
-            print(chunk, end='', flush=True)  # 实时显示流式输出
-        print()  # 换行
-        return fallback_response, "多智能体模式出错，已切换到通用问答模式"
+
 
 # ==================== 原有RAG函数 ====================
 
@@ -1901,17 +1784,13 @@ def test_body_analysis():
     try:
         import time
         time_start = time.time()
-        response, knowledge_chunks = get_multi_agent_response_internal(query, "异常2")
+        get_multi_agent_response_internal(query, "异常2")
         time_end = time.time()
-        print("=== 三项多智能体分析结果 ===")
-        print(f"分析结果：{response}")
         #print("\n=== 知识库召回信息 ===")
         #print(knowledge_chunks)
         print(f"三项多智能体分析时间：{time_end - time_start}秒")
-        return response, knowledge_chunks
     except Exception as e:
         print(f"测试失败：{e}")
-        return None, None
 
 if __name__ == "__main__":
     # 运行测试
